@@ -68,9 +68,9 @@ async function cacheCheck() {
   $('cachelist').innerHTML = rows.map((r, i) => `
     <div class="row">
       <span class="grow"><b>${esc(r.name)}</b><br><span class="dim">${esc(r.path)}</span></span>
-      <span class="${r.over ? 'warn' : ''}">${r.exists ? MB(r.size_mb) : '없음'}</span>
-      <span class="dim">기준 <input type="number" min="1" value="${r.limit_mb}" style="width:70px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--panel);color:var(--text);font-family:inherit"
-        onchange="limitSet(${i}, this.value)" title="처음엔 말끔이가 대충 정한 값 — 자유롭게 바꾸세요"> MB</span>
+      <span id="csize-${i}" class="${r.over ? 'warn' : ''}">${r.exists ? MB(r.size_mb) : '없음'}</span>
+      <span class="dim">기준 <input type="number" min="64" step="256" value="${r.limit_mb}" style="width:76px;border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--panel);color:var(--text);font-family:inherit"
+        onchange="limitSet(${i}, this.value)" title="처음엔 말끔이가 대충 정한 값 — 자유롭게 바꾸세요 (저장은 자동)"> MB</span>
       <span class="dim">${r.last_clean ? '청소: ' + r.last_clean : ''}</span>
       ${r.exists ? `<button class="act" onclick="cleanOneIdx(${i})">비우기</button>` : ''}
     </div>`).join('') || '<span class="muted">등록된 대상이 없어요 — 자동 서치를 눌러 보세요.</span>';
@@ -89,9 +89,14 @@ async function cleanWithProgress(path, name) {
 }
 function cleanOneIdx(i) { cleanOne(window._cache[i].path, window._cache[i].name); }
 async function limitSet(i, v) {
-  if (!parseInt(v)) return;
-  await api().cache_set_limit(window._cache[i].path, parseInt(v));
-  cacheCheck();
+  // 조용히 저장 — 전체 목록을 다시 재지 않고(깜빡임 원인) 이 줄의 '기준 초과' 표시만 갱신
+  const mb = parseInt(v);
+  if (!mb) return;
+  await api().cache_set_limit(window._cache[i].path, mb);
+  const r = window._cache[i];
+  r.limit_mb = mb; r.over = r.size_mb >= mb;
+  const span = $(`csize-${i}`);
+  if (span) span.className = r.over ? 'warn' : '';
 }
 async function cleanOne(path, name) {
   const pv = await api().cache_preview(path);
