@@ -244,11 +244,29 @@ def main():
                           'adblock': api.adblock_status(), 'sched': api.sched_status()},
                          ensure_ascii=False, indent=1)[:2000])
         return
+    import threading
     import webview
     api = Api()
-    webview.create_window('말끔이 — 내 컴퓨터 청소 매니저',
-                          os.path.join(RES_DIR, 'ui', 'index.html'),
-                          js_api=api, width=1100, height=760, min_size=(900, 600))
+    # 스플래시: 아이콘이 천천히 떠오른 뒤 본창과 교대 — 깜빡 하고 들어가는 느낌 제거 (사용자 지시 2026-11-03)
+    ui_dir = os.path.join(RES_DIR, 'ui')
+    main_win = webview.create_window('말끔이 — 내 컴퓨터 청소 매니저',
+                                     os.path.join(ui_dir, 'index.html'), js_api=api,
+                                     width=1100, height=760, min_size=(900, 600), hidden=True)
+    splash = None
+    if os.path.exists(os.path.join(ui_dir, 'splash.html')):
+        splash = webview.create_window('말끔이', os.path.join(ui_dir, 'splash.html'),
+                                       width=380, height=420, frameless=True, on_top=True,
+                                       resizable=False)
+
+    def boot():
+        import time as _t
+        _t.sleep(1.8)   # 페이드인(1.1s) + 잠깐 머무름
+        main_win.show()
+        if splash is not None:
+            _t.sleep(0.25)
+            try: splash.destroy()
+            except Exception: pass
+    threading.Thread(target=boot, daemon=True).start()
     webview.start()
 
 
