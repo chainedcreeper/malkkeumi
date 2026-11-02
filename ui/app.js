@@ -64,12 +64,14 @@ function applyTheme(v) {
 async function cacheCheck() {
   $('cachelist').textContent = '용량 재는 중...';
   const rows = await api().cache_check();
-  $('cachelist').innerHTML = rows.map(r => `
+  window._cache = rows;
+  $('cachelist').innerHTML = rows.map((r, i) => `
     <div class="row">
       <span class="grow"><b>${esc(r.name)}</b><br><span class="dim">${esc(r.path)}</span></span>
-      <span class="${r.over ? 'warn' : ''}">${r.exists ? MB(r.size_mb) : '없음'} / 기준 ${MB(r.limit_mb)}</span>
+      <span class="${r.over ? 'warn' : ''}">${r.exists ? MB(r.size_mb) : '없음'} /
+        <a href="#" onclick="limitEdit(${i}); return false" title="클릭해서 기준 바꾸기">기준 ${MB(r.limit_mb)} ✏️</a></span>
       <span class="dim">${r.last_clean ? '청소: ' + r.last_clean : ''}</span>
-      ${r.exists ? `<button class="act" onclick="cleanOne('${esc(r.path).replace(/\\/g, '\\\\')}', '${esc(r.name)}')">비우기</button>` : ''}
+      ${r.exists ? `<button class="act" onclick="cleanOneIdx(${i})">비우기</button>` : ''}
     </div>`).join('') || '<span class="muted">등록된 대상이 없어요 — 자동 서치를 눌러 보세요.</span>';
 }
 async function cleanWithProgress(path, name) {
@@ -83,6 +85,14 @@ async function cleanWithProgress(path, name) {
       if (!p.running && p.result) { clearInterval(iv); resolve(p.result); }
     }, 300);
   });
+}
+function cleanOneIdx(i) { cleanOne(window._cache[i].path, window._cache[i].name); }
+async function limitEdit(i) {
+  const r = window._cache[i];
+  const v = prompt(`[${r.name}] 청소 기준(MB)을 정하세요 — 이 용량을 넘으면 '기준 초과'로 표시되고, 한 번에 비우기·자동 청소의 대상이 돼요`, r.limit_mb);
+  if (!v || !parseInt(v)) return;
+  await api().cache_set_limit(r.path, parseInt(v));
+  cacheCheck();
 }
 async function cleanOne(path, name) {
   const pv = await api().cache_preview(path);

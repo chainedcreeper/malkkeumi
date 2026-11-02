@@ -12,8 +12,9 @@ import subprocess
 import urllib.request
 
 REPO = 'chainedcreeper/malkkeumi'   # GitHub 리포 (owner/name)
-from .base import APP_DIR as HERE
-VERSION_FILE = os.path.join(HERE, 'VERSION')
+from .base import APP_DIR as HERE, LAUNCHER_APP
+# 런처 구조에선 코드·VERSION 이 app/ 폴더에 있다
+VERSION_FILE = os.path.join(LAUNCHER_APP or HERE, 'VERSION')
 RAW_VERSION = f'https://raw.githubusercontent.com/{REPO}/main/VERSION'
 RELEASES = f'https://github.com/{REPO}/releases/latest'
 
@@ -39,7 +40,7 @@ def _tuple(v):
 def check():
     """{local, remote, newer(bool|None), mode} — remote=None 이면 확인 실패(오프라인 등)"""
     lv = local_version()
-    mode = 'git' if os.path.isdir(os.path.join(HERE, '.git')) else 'exe'
+    mode = 'launcher' if LAUNCHER_APP else ('git' if os.path.isdir(os.path.join(HERE, '.git')) else 'exe')
     try:
         rv = remote_version()
     except OSError:
@@ -49,7 +50,9 @@ def check():
 
 
 def update():
-    """소스 설치면 git pull — 성공 시 '재시작하면 적용'. exe면 다운로드 페이지 주소만."""
+    """런처 구조: 다시 켜면 런처가 자동으로 받음. 소스 설치: git pull. exe 단독: 다운로드 페이지."""
+    if LAUNCHER_APP:
+        return {'ok': True, 'msg': '프로그램을 껐다 다시 켜면 자동으로 최신 버전을 받아요 — 런처가 처리해요.'}
     if not os.path.isdir(os.path.join(HERE, '.git')):
         return {'ok': False, 'open': RELEASES,
                 'msg': '설치판은 최신 버전을 내려받아 바꿔 주세요 (페이지를 열어 드릴게요).'}

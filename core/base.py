@@ -12,4 +12,8 @@ FROZEN = getattr(sys, 'frozen', False)
 APP_DIR = os.path.dirname(sys.executable) if FROZEN \
     else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES_DIR = getattr(sys, '_MEIPASS', APP_DIR)
+# 런처 구조: 런처 exe 가 깃허브에서 받은 코드 폴더(app/)를 알려준다 — 화면·버전은 거기 것을 쓴다
+LAUNCHER_APP = os.environ.get('MALKKEUMI_APP')
+if LAUNCHER_APP:
+    RES_DIR = LAUNCHER_APP
 DATA = os.path.join(APP_DIR, 'data')

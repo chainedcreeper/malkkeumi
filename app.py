@@ -87,6 +87,14 @@ class Api:
     def cache_register(self, name, path, limit_mb):
         return cache_registry.check(cache_registry.register(cache_registry.load(), name, path, limit_mb))
 
+    def cache_set_limit(self, path, limit_mb):
+        reg = cache_registry.load()
+        for r in reg:
+            if os.path.normcase(r['path']) == os.path.normcase(path):
+                r['limit_mb'] = max(1, int(limit_mb))
+        cache_registry.save(reg)
+        return {'ok': True}
+
     def cache_preview(self, path):
         return cleaner.preview(path)
 
