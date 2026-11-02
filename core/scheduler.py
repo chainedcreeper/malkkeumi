@@ -14,7 +14,8 @@ APP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
 def _run(args):
     try:
         r = subprocess.run(args, capture_output=True, timeout=30)
-        return r.returncode == 0, (r.stdout + r.stderr).decode('cp949', errors='replace').strip()
+        from .winpaths import console_decode
+        return r.returncode == 0, console_decode(r.stdout + r.stderr).strip()
     except (OSError, subprocess.SubprocessError) as e:
         return False, str(e)
 

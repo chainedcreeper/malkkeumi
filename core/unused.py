@@ -13,9 +13,9 @@ import os
 import shutil
 import time
 
-HOME = os.path.expanduser('~')
-SCAN_ROOTS = [os.path.join(HOME, d) for d in ('Downloads', 'Desktop', 'Documents', 'Videos', 'Pictures')]
-ARCHIVE = os.path.join(HOME, 'Desktop', '말끔이 보관함')
+from .winpaths import user_content_roots, known_folder
+SCAN_ROOTS = user_content_roots()   # 이 컴퓨터의 실제 다운로드·바탕화면·문서… (OneDrive 이동·영어 윈도우 대응)
+ARCHIVE = os.path.join(known_folder('desktop'), '말끔이 보관함')
 DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
 MOVES_LOG = os.path.join(DATA, 'moves.json')   # 되돌리기용 원위치 기록
 SKIP_NAMES = {'desktop.ini', 'thumbs.db'}

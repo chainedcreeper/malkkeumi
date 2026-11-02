@@ -150,9 +150,24 @@ async function schedOff() {
   schedState();
 }
 
+// ── 업데이트 ──
+async function updateCheck() {
+  const u = await api().update_check();
+  if (u.remote === null) { $('update-state').textContent = `버전 ${u.local} · 업데이트 확인 불가(오프라인?)`; return; }
+  $('update-state').textContent = u.newer
+    ? `새 버전 있어요! ${u.local} → ${u.remote}` : `최신 버전이에요 (${u.local})`;
+  $('update-btn').style.display = u.newer ? '' : 'none';
+}
+async function updateRun() {
+  const r = await api().update_run();
+  alert(r.msg + (r.detail ? '\n' + r.detail : ''));
+  if (r.open) window.open(r.open);
+  updateCheck();
+}
+
 // ── 시작 ──
 for (let h = 0; h < 24; h++) $('sched-hour').insertAdjacentHTML('beforeend', `<option ${h === 21 ? 'selected' : ''}>${h}</option>`);
 window.addEventListener('pywebviewready', () => {
   refreshStatus(); setInterval(refreshStatus, 3000);
-  cacheCheck(); adblockBox(); schedState();
+  cacheCheck(); adblockBox(); schedState(); updateCheck();
 });

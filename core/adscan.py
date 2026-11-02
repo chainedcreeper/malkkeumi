@@ -66,7 +66,8 @@ def scheduled_tasks():
     try:
         r = subprocess.run(['schtasks', '/query', '/fo', 'csv', '/v'],
                            capture_output=True, timeout=60)
-        text = r.stdout.decode('cp949', errors='replace')
+        from .winpaths import console_decode
+        text = console_decode(r.stdout)
     except (OSError, subprocess.SubprocessError):
         return out
     rows = csv.DictReader(io.StringIO(text))

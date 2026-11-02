@@ -14,7 +14,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from core import sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused
+from core import sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused, updater
 
 
 class Api:
@@ -67,6 +67,13 @@ class Api:
 
     def unused_undo(self, to_path):
         return unused.undo(to_path)
+
+    # ── 업데이트 (깃허브 연결) ──
+    def update_check(self):
+        return updater.check()
+
+    def update_run(self):
+        return updater.update()
 
     # ── 스케줄 ──
     def sched_status(self):
