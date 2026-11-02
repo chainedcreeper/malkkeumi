@@ -98,6 +98,47 @@ def scan_programs(days=60):
     return {'error': None, 'items': items[:100]}
 
 
+# 파일 해석 사전 — "이 파일이 뭔지"를 사람 말로
+EXT_KIND = {
+    '.exe': ('실행 파일', None), '.msi': ('설치 패키지', '설치가 끝났으면 지워도 돼요'),
+    '.zip': ('압축 파일', '풀어서 썼다면 원본은 지워도 돼요'), '.7z': ('압축 파일', '풀어서 썼다면 원본은 지워도 돼요'),
+    '.rar': ('압축 파일', '풀어서 썼다면 원본은 지워도 돼요'), '.iso': ('디스크 이미지', '설치 후엔 보통 필요 없어요'),
+    '.mp4': ('동영상', None), '.mkv': ('동영상', None), '.avi': ('동영상', None), '.gif': ('움짤', None),
+    '.mp3': ('음악', None), '.wav': ('소리 파일', None), '.flac': ('음악', None),
+    '.jpg': ('사진', None), '.jpeg': ('사진', None), '.png': ('이미지', None), '.webp': ('이미지', None),
+    '.pdf': ('PDF 문서', None), '.hwp': ('한글 문서', None), '.docx': ('워드 문서', None),
+    '.xlsx': ('엑셀 문서', None), '.pptx': ('파워포인트', None), '.txt': ('텍스트', None),
+    '.torrent': ('토렌트 시드', '다운로드 끝났으면 지워도 돼요'), '.apk': ('안드로이드 앱', None),
+    '.json': ('데이터 파일', None), '.csv': ('표 데이터', None), '.log': ('로그 기록', '지워도 돼요'),
+    '.tmp': ('임시 파일', '지워도 돼요'), '.bak': ('백업 사본', None), '.lnk': ('바로가기', '원본이 아니라 지워도 돼요'),
+}
+import re as _re
+_INSTALLER = _re.compile(r'setup|install|installer|_x64|_x86|win64|다운로더', _re.I)
+
+
+def browse(where='downloads', max_items=300):
+    """파일 해석 화면 — 폴더 최상위 파일을 '뭔지 + 지워도 되는지 힌트'와 함께 나열 (큰 것부터)"""
+    root = known_folder(where)
+    out = []
+    try:
+        entries = [e for e in os.scandir(root) if e.is_file(follow_symlinks=False)]
+    except OSError:
+        return {'root': root, 'items': [], 'error': '폴더를 열 수 없음'}
+    for e in entries:
+        if e.name.lower() in SKIP_NAMES: continue
+        try: st = e.stat()
+        except OSError: continue
+        ext = os.path.splitext(e.name)[1].lower()
+        kind, hint = EXT_KIND.get(ext, (f'{ext[1:].upper()} 파일' if ext else '파일', None))
+        if ext in ('.exe', '.msi') and _INSTALLER.search(e.name):
+            kind, hint = '설치 프로그램', '프로그램을 이미 설치했다면 지워도 돼요'
+        out.append({'path': e.path, 'name': e.name, 'size_mb': round(st.st_size / 2**20, 1),
+                    'created': time.strftime('%Y-%m-%d', time.localtime(st.st_ctime)),
+                    'kind': kind, 'hint': hint})
+    out.sort(key=lambda x: -x['size_mb'])
+    return {'root': root, 'items': out[:max_items]}
+
+
 def notice(items):
     """알림 문장 — 사람이 읽는 한 줄"""
     if not items: return None

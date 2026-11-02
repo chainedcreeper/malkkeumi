@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>말끔이 위젯</title>
+<style>
+/* 모서리 상주 미니 위젯 — 프레임 없는 작은 창. 드래그로 이동(easy_drag), ✕로 닫기 */
+body{margin:0;font-family:'Segoe UI','Malgun Gothic',sans-serif;background:#171b26;color:#dfe4ee;
+  font-size:12px;border-radius:12px;overflow:hidden;cursor:default;user-select:none}
+#wrap{padding:9px 12px}
+.top{display:flex;align-items:center;margin-bottom:6px}
+.dot{width:8px;height:8px;border-radius:4px;background:#3dbb7d;margin-right:6px}
+.dot.busy{background:#e8b33c}.dot.hot{background:#ef6a5e}
+#title{font-weight:700;letter-spacing:-.2px;flex:1}
+#x{color:#8b92a1;cursor:pointer;padding:0 2px;font-size:13px}
+#x:hover{color:#fff}
+.g{display:flex;align-items:center;gap:6px;margin:3px 0}
+.g b{width:34px;font-weight:600;color:#9aa3b5;font-size:11px}
+.bar{flex:1;height:5px;background:#2a2e38;border-radius:3px;overflow:hidden}
+.bar>div{height:100%;background:#6b93ff;border-radius:3px;transition:width .4s}
+.bar>div.hot{background:#ef6a5e}
+.v{width:86px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="top"><span class="dot" id="dot"></span><span id="title">말끔이</span><span id="x" title="닫기">✕</span></div>
+  <div class="g"><b>CPU</b><div class="bar"><div id="b-cpu"></div></div><span class="v" id="v-cpu">—</span></div>
+  <div class="g"><b>RAM</b><div class="bar"><div id="b-mem"></div></div><span class="v" id="v-mem">—</span></div>
+  <div class="g"><b>GPU</b><div class="bar"><div id="b-gpu"></div></div><span class="v" id="v-gpu">—</span></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+async function tick() {
+  try {
+    const s = await window.pywebview.api.quick_status();
+    const set = (b, v, pct, label) => { $(b).style.width = Math.min(100, pct) + '%';
+      $(b).className = pct >= 85 ? 'hot' : ''; $(v).textContent = label; };
+    set('b-cpu', 'v-cpu', s.cpu, s.cpu + '%' + (s.cpu_temp !== null ? ' ' + s.cpu_temp + '°' : ''));
+    set('b-mem', 'v-mem', s.mem, s.mem + '%');
+    if (s.gpu) set('b-gpu', 'v-gpu', s.gpu.util, s.gpu.util + '% ' + s.gpu.temp + '°');
+    else $('v-gpu').textContent = '—';
+    const worst = Math.max(s.cpu, s.mem, s.gpu ? s.gpu.util : 0);
+    $('dot').className = 'dot' + (worst >= 85 ? ' hot' : worst >= 55 ? ' busy' : '');
+  } catch (e) { /* 준비 전 */ }
+}
+$('x').onclick = () => window.pywebview.api.widget_toggle();
+window.addEventListener('pywebviewready', () => { tick(); setInterval(tick, 2000); });
+</script>
+</body>
+</html>

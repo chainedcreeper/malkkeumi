@@ -49,6 +49,42 @@ def _hash(path, limit=None):
         return None
 
 
+def move_to_desktop(paths):
+    """사본을 바탕화면 「중복 파일 모음」 폴더로 — 눈에 보이는 곳에 모아두는 가벼운 분리"""
+    import shutil
+    import time
+    from .winpaths import known_folder
+    dest_dir = os.path.join(known_folder('desktop'), '중복 파일 모음', time.strftime('%Y-%m-%d'))
+    os.makedirs(dest_dir, exist_ok=True)
+    moved = skipped = 0
+    for p in paths:
+        try:
+            dest = os.path.join(dest_dir, os.path.basename(p))
+            i = 1
+            while os.path.exists(dest):
+                stem, ext = os.path.splitext(os.path.basename(p))
+                dest = os.path.join(dest_dir, f'{stem} ({i}){ext}'); i += 1
+            shutil.move(p, dest); moved += 1
+        except OSError:
+            skipped += 1
+    return {'moved': moved, 'skipped': skipped, 'dest': dest_dir}
+
+
+def trash(paths):
+    """사본 바로 삭제 — 그래도 휴지통 경유(원칙 유지). 복구는 휴지통에서."""
+    try:
+        from send2trash import send2trash
+    except ImportError:
+        return {'ok': False, 'error': 'send2trash 없음'}
+    done = skipped = 0
+    for p in paths:
+        try:
+            send2trash(p); done += 1
+        except OSError:
+            skipped += 1
+    return {'ok': True, 'done': done, 'skipped': skipped}
+
+
 def find(min_mb=10, max_groups=50):
     """중복 그룹 [{size_mb, files:[경로…], wasted_mb}] — 낭비 큰 순"""
     by_size = {}

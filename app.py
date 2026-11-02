@@ -19,9 +19,47 @@ from core import (sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, 
 
 
 class Api:
+    def __init__(self):
+        self._widget = None
+
     # ── 상태 탭 ──
     def status(self):
         return sysinfo.status()
+
+    def quick_status(self):
+        return sysinfo.quick()
+
+    # ── 모서리 위젯 (우측 상단 상주, 드래그 이동, ✕/버튼으로 토글) ──
+    def widget_toggle(self):
+        import ctypes
+        import webview
+        if self._widget is not None:
+            try: self._widget.destroy()
+            except Exception: pass
+            self._widget = None
+            return {'on': False}
+        sw = ctypes.windll.user32.GetSystemMetrics(0)
+        self._widget = webview.create_window(
+            '말끔이 위젯', os.path.join(RES_DIR, 'ui', 'widget.html'), js_api=self,
+            width=252, height=102, x=sw - 264, y=10,
+            frameless=True, on_top=True, easy_drag=True, resizable=False)
+        return {'on': True}
+
+    def widget_state(self):
+        return {'on': self._widget is not None}
+
+    # ── 광고 차단 자가진단 ──
+    def adblock_test(self):
+        """대표 광고 도메인 3개를 실제로 이름 변환해 차단 동작을 실측 — 0.0.0.0 이면 차단 성공"""
+        import socket
+        out = []
+        for d in ('doubleclick.net', 'googlesyndication.com', 'adnxs.com'):
+            try:
+                ip = socket.gethostbyname(d)
+                out.append({'domain': d, 'ip': ip, 'blocked': ip == '0.0.0.0'})
+            except socket.gaierror:
+                out.append({'domain': d, 'ip': '해석 실패', 'blocked': True})
+        return {'items': out, 'all_blocked': all(o['blocked'] for o in out)}
 
     def proc_kill(self, name, pids):
         return sysinfo.kill(name, pids)
@@ -85,8 +123,15 @@ class Api:
         items = unused.scan(days=int(days))
         return {'items': items, 'notice': unused.notice(items)}
 
-    def unused_programs(self):
-        return unused.scan_programs()
+    def unused_programs(self, days=60):
+        return unused.scan_programs(days=int(days))
+
+    # ── 파일 정리(해석 후 삭제) 탭 ──
+    def files_browse(self, where='downloads'):
+        return unused.browse(where)
+
+    def trash_paths(self, paths):
+        return dupes.trash(paths)
 
     def unused_separate(self, paths):
         return unused.separate(paths)
@@ -102,6 +147,26 @@ class Api:
     def disk_roots(self):
         return diskmap.roots()
 
+    def open_in_explorer(self, path):
+        """탐색기에서 해당 항목을 선택한 채로 열기"""
+        import subprocess
+        if os.path.exists(path):
+            subprocess.Popen(['explorer', '/select,', path])
+            return {'ok': True}
+        return {'ok': False, 'error': '경로가 없음'}
+
+    def copy_path(self, path):
+        """경로를 클립보드로 — 한글 경로 안전하게 PowerShell Set-Clipboard 사용"""
+        import subprocess
+        try:
+            subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command',
+                            'Set-Clipboard -Value $env:MK_COPY'],
+                           env={**os.environ, 'MK_COPY': path}, timeout=10,
+                           creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+            return {'ok': True}
+        except (OSError, subprocess.SubprocessError) as e:
+            return {'ok': False, 'error': str(e)}
+
     def disk_children(self, path):
         return diskmap.children(path)
 
@@ -114,6 +179,12 @@ class Api:
     # ── 중복 파일 ──
     def dupes_find(self, min_mb=10):
         return dupes.find(min_mb)
+
+    def dupes_move_desktop(self, paths):
+        return dupes.move_to_desktop(paths)
+
+    def dupes_trash(self, paths):
+        return dupes.trash(paths)
 
     # ── 휴지통 ──
     def recycle_status(self):

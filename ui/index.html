@@ -71,6 +71,7 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
   <button data-tab="ad">광고 점검·차단</button>
   <button data-tab="mal">악성 점검</button>
   <button data-tab="unused">안 쓰는 것</button>
+  <button data-tab="files">파일 정리</button>
   <button data-tab="dupes">중복 파일</button>
   <button data-tab="disk">디스크 지도</button>
   <button data-tab="sched">자동 청소</button>
@@ -81,7 +82,10 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
 <main>
 
 <section id="status" class="on">
-  <div class="card" id="summary">불러오는 중...</div>
+  <div class="card" style="display:flex;align-items:center;gap:14px">
+    <div id="summary" style="flex:1;padding:4px 2px;font-size:17px;font-weight:600;line-height:1.55">불러오는 중...</div>
+    <button class="act" id="widget-btn" onclick="widgetToggle()" style="white-space:nowrap">📌 모서리에 띄우기</button>
+  </div>
   <div class="tiles">
     <div class="tile"><div class="k">CPU</div><div class="v" id="t-cpu">—</div><div class="gauge"><div id="g-cpu"></div></div></div>
     <div class="tile"><div class="k">메모리</div><div class="v" id="t-mem">—</div><div class="gauge"><div id="g-mem"></div></div></div>
@@ -116,8 +120,13 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
 
 <section id="ad">
   <div class="card">
-    <h3>시스템 전체 광고 차단 (hosts)</h3>
+    <h3>시스템 전체 광고 차단 (hosts) <button class="act" onclick="adblockTest()">차단 작동 확인</button></h3>
     <div id="adblock-box" class="muted">확인 중...</div>
+    <div id="adblock-test"></div>
+    <div class="dim" style="margin-top:8px">
+      <b>차단 범위</b>: 광고 서버 "도메인"으로 가는 모든 프로그램의 연결 (브라우저·게임·앱 전부).<br>
+      <b>차단 못 하는 것</b>: ① 유튜브 광고처럼 영상과 같은 서버에서 나오는 광고 ② 앱이 자기 서버에서 직접 내려주는 광고
+      ③ 브라우저의 「보안 DNS(DoH)」가 켜져 있으면 그 브라우저는 hosts 를 건너뜀 — 설정에서 '운영체제 기본'으로 두면 적용돼요.</div>
   </div>
   <div class="card">
     <h3>광고 유입 경로 점검 <button class="act" onclick="adScan()">스캔</button></h3>
@@ -150,9 +159,22 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
     <div id="unusedlist" class="muted">스캔을 눌러 시작</div>
   </div>
   <div class="card">
-    <h3>몇 달째 안 켠 프로그램 <button class="act" onclick="unusedPrograms()">확인</button></h3>
+    <h3>안 켠 프로그램 찾기 — 기준:
+      <select id="prog-days"><option value="30">1개월</option><option value="60" selected>2개월</option><option value="90">3개월</option><option value="180">6개월</option></select>
+      이상 안 켠 것 <button class="act" onclick="unusedPrograms()">확인</button></h3>
     <div class="dim">윈도우 실행 기록(Prefetch) 기준 — 삭제(제거)는 윈도우 설정 → 앱에서 하세요. 여기선 알려만 드려요.</div>
     <div id="programlist"></div>
+  </div>
+</section>
+
+<section id="files">
+  <div class="card">
+    <h3>파일 해석·정리
+      <select id="files-where"><option value="downloads" selected>다운로드</option><option value="desktop">바탕화면</option><option value="documents">문서</option></select>
+      <button class="act" onclick="filesBrowse()">읽기</button>
+      <button class="act danger" onclick="filesTrashChecked()">선택한 것 휴지통으로</button></h3>
+    <div class="dim">폴더의 파일이 뭔지 사람 말로 풀어주고, 지워도 되는 것엔 힌트를 달아줘요. 삭제는 휴지통 경유.</div>
+    <div id="fileslist" class="muted">읽기를 눌러 시작</div>
   </div>
 </section>
 
@@ -171,6 +193,7 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
     <h3>디스크 지도 — 어디가 공간을 먹고 있나 <span id="disk-roots"></span></h3>
     <div class="dim">폴더를 누르면 그 안으로 들어가요. 한 계층씩만 재니까 기다림이 없어요.</div>
     <div id="disk-path" class="dim" style="padding:6px 0"></div>
+    <div id="disk-busy"></div>
     <div id="disklist" class="muted">출발점을 고르세요</div>
   </div>
 </section>

@@ -102,6 +102,18 @@ def _load_ranked(n=12):
     return out[:n]
 
 
+_temp_cache = {'v': None, 'ts': 0.0}
+
+
+def quick():
+    """모서리 위젯용 경량 상태 — 2초 폴링에도 부담 없게. CPU 온도(파워셸 300ms)는 60초 캐시."""
+    if time.time() - _temp_cache['ts'] > 60:
+        _temp_cache['v'] = _cpu_temp(); _temp_cache['ts'] = time.time()
+    mem = psutil.virtual_memory()
+    return {'cpu': psutil.cpu_percent(interval=None), 'mem': mem.percent,
+            'gpu': _gpu(), 'cpu_temp': _temp_cache['v']}
+
+
 def status():
     cpu = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory()

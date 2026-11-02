@@ -236,52 +236,157 @@ async function dupesFind() {
   if (!r.groups.length) { $('dupeslist').innerHTML = '<span class="muted">중복 파일이 없어요. 깨끗!</span>'; return; }
   $('dupeslist').innerHTML =
     `<div class="notice">같은 파일이 겹쳐서 낭비되는 공간: <b>${MB(r.wasted_total_mb)}</b></div>` +
-    r.groups.map(g => `
+    r.groups.map((g, gi) => `
     <div class="row"><span class="grow">
       ${g.files.map((f, i) => `<div>${i === 0 ? '📌 ' : '🔁 '}<span class="dim">${esc(f)}</span></div>`).join('')}
     </span><span>${MB(g.size_mb)} ×${g.files.length}</span>
-    <button class="act" onclick='dupesSeparate(${JSON.stringify(g.files.slice(1))})'>사본 분리</button></div>`).join('');
+    <span style="display:flex;gap:4px;flex-direction:column">
+      <button class="act" onclick="dupesAct(${gi}, 'keep')">보관함 분리</button>
+      <button class="act" onclick="dupesAct(${gi}, 'desktop')">바탕화면 모음</button>
+      <button class="act danger" onclick="dupesAct(${gi}, 'trash')">휴지통 삭제</button>
+    </span></div>`).join('');
+  window._dupes = r.groups;
 }
-async function dupesSeparate(paths) {
-  if (!confirm(`사본 ${paths.length}개를 보관함으로 옮겨요 (첫 번째 파일은 원본으로 남김, 삭제 아님).`)) return;
-  const r = await api().unused_separate(paths);
-  alert(`옮김 ${r.moved}개 — ${r.archive}`);
+async function dupesAct(gi, mode) {
+  const paths = window._dupes[gi].files.slice(1);   // 첫 파일은 원본으로 남김
+  const what = {keep: '「말끔이 보관함」으로 옮겨요 (되돌리기 지원)',
+                desktop: '바탕화면 「중복 파일 모음」 폴더로 옮겨요',
+                trash: '휴지통으로 삭제해요'}[mode];
+  if (!confirm(`사본 ${paths.length}개를 ${what}.
+(첫 번째 파일은 원본으로 남겨요)`)) return;
+  let msg;
+  if (mode === 'keep') { const r = await api().unused_separate(paths); msg = `옮김 ${r.moved}개 — ${r.archive}`; }
+  else if (mode === 'desktop') { const r = await api().dupes_move_desktop(paths); msg = `옮김 ${r.moved}개 — ${r.dest}`; }
+  else { const r = await api().dupes_trash(paths); msg = `휴지통으로 ${r.done}개`; }
+  alert(msg);
   dupesFind();
 }
 
-// ── 디스크 지도 탭 ──
-// 경로는 HTML 속성에 직접 넣지 않는다(백슬래시·따옴표 이스케이프 지옥) — 배열에 담고 인덱스로 부른다
-window._diskItems = []; window._diskRoots = []; window._diskParent = null;
-function diskGoIdx(i) { diskGo(window._diskItems[i].path); }
-function diskGoRoot(i) { diskGo(window._diskRoots[i].path); }
-function diskGoUp() { if (window._diskParent) diskGo(window._diskParent); }
-async function diskGo(path) {
+// ── 파일 정리(해석 후 삭제) 탭 ──
+async function filesBrowse() {
+  $('fileslist').textContent = '읽는 중...';
+  const r = await api().files_browse($('files-where').value);
+  if (r.error) { $('fileslist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
+  window._files = r.items;
+  $('fileslist').innerHTML = r.items.map((f, i) => `
+    <div class="row">
+      <input type="checkbox" class="ftrash" value="${i}">
+      <span class="grow"><b>${esc(f.name)}</b><br>
+        <span class="dim">${esc(f.kind)} · ${MB(f.size_mb)} · ${f.created}${f.hint ? ` · <span class="ok">${esc(f.hint)}</span>` : ''}</span></span>
+      <button class="act danger" onclick="filesTrashOne(${i})">휴지통</button>
+    </div>`).join('') || '<span class="muted">파일이 없어요.</span>';
+}
+async function filesTrashOne(i) {
+  const f = window._files[i];
+  if (!confirm(`[${f.name}] 휴지통으로 보낼까요?`)) return;
+  await api().trash_paths([f.path]);
+  filesBrowse();
+}
+async function filesTrashChecked() {
+  const idx = [...document.querySelectorAll('.ftrash:checked')].map(c => +c.value);
+  if (!idx.length) return alert('삭제할 파일을 체크하세요');
+  const total = idx.reduce((a, i) => a + window._files[i].size_mb, 0);
+  if (!confirm(`${idx.length}개 파일(${MB(Math.round(total))})을 휴지통으로 보낼까요?`)) return;
+  const r = await api().trash_paths(idx.map(i => window._files[i].path));
+  alert(`휴지통으로 ${r.done}개${r.skipped ? `, 실패 ${r.skipped}개` : ''}`);
+  filesBrowse();
+}
+
+// ── 디스크 지도 탭: 측정한 폴더를 캐시에 쌓아 '펼침/접힘 트리'로 누적 재구성 ──
+// 경로는 HTML 속성에 넣지 않는다(이스케이프 지옥) — 노드 배열 인덱스로만 참조
+window._diskCache = {};   // 경로 -> 측정 결과
+window._diskOpen = {};    // 경로 -> 펼침 여부
+window._diskRoot = null;
+window._diskNodes = [];   // 이번 렌더의 행 인덱스 -> 항목
+window._diskRoots = [];
+const dnorm = p => p.toLowerCase().replace(/\\+$/, '');
+
+async function diskMeasure(path) {
   const st = await api().disk_start(path);
-  if (!st.ok) return;   // 이미 재는 중이면 무시
+  if (!st.ok) return null;
   const r = await new Promise(resolve => {
     const iv = setInterval(async () => {
       const p = await api().disk_progress();
-      $('disklist').innerHTML = progressBar(p.pct, p.stage);
+      $('disk-busy').innerHTML = progressBar(p.pct, p.stage);
       if (!p.running && p.result) { clearInterval(iv); resolve(p.result); }
     }, 300);
   });
-  if (r.error) { $('disklist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
-  window._diskItems = r.items; window._diskParent = r.parent;
-  $('disk-path').innerHTML = `${esc(r.path)} — 합계 약 ${MB(r.total_mb)}` +
-    (r.parent ? ` <button class="act" onclick="diskGoUp()">⬆ 위로</button>` : '');
-  $('disklist').innerHTML = r.items.map((i, idx) => `
-    <div class="row">
-      <span style="width:46px;text-align:right">${i.pct}%</span>
-      <div class="gauge" style="max-width:220px"><div style="width:${Math.min(100, i.pct)}%"></div></div>
-      <span class="grow">${i.is_dir ? `<a href="#" onclick="diskGoIdx(${idx}); return false">📁 ${esc(i.name)}</a>` : esc(i.name)}</span>
-      <span>${i.capped ? '약 ' : ''}${MB(i.size_mb)}${i.capped ? ' 이상' : ''}</span>
-    </div>`).join('');
+  $('disk-busy').innerHTML = '';
+  if (r.error) { $('disk-busy').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return null; }
+  window._diskCache[dnorm(r.path)] = r;
+  return r;
 }
+function diskTreeHTML(path, depth) {
+  const r = window._diskCache[dnorm(path)];
+  if (!r) return '';
+  return r.items.map(i => {
+    const key = dnorm(i.path);
+    const cached = !!window._diskCache[key];
+    const open = cached && window._diskOpen[key];
+    const idx = window._diskNodes.push(i) - 1;
+    const pad = 14 + depth * 22;
+    const toggle = i.is_dir
+      ? `<a href="#" onclick="diskToggle(${idx}); return false" style="font-weight:600">${open ? '▾' : '▸'} 📁 ${esc(i.name)}</a>`
+      : `<a href="#" onclick="diskOpen(${idx}); return false"><span class="dim">▪</span> ${esc(i.name)}</a>`;
+    return `
+    <div class="row" style="padding-left:${pad}px" oncontextmenu="diskCopy(${idx}); return false" title="우클릭: 경로 복사">
+      <span class="grow">${toggle}</span>
+      <button class="act" style="padding:2px 7px;font-size:11px" onclick="diskOpen(${idx})" title="탐색기에서 열기">📂</button>
+      <div class="gauge" style="max-width:150px"><div style="width:${Math.min(100, i.pct)}%"></div></div>
+      <span style="width:48px;text-align:right" class="dim">${i.pct}%</span>
+      <span style="width:92px;text-align:right">${i.capped ? '약 ' : ''}${MB(i.size_mb)}${i.capped ? '+' : ''}</span>
+    </div>` + (open ? diskTreeHTML(i.path, depth + 1) : '');
+  }).join('');
+}
+function diskRender() {
+  const root = window._diskCache[dnorm(window._diskRoot)];
+  if (!root) return;
+  window._diskNodes = [];
+  $('disk-path').innerHTML = `${esc(root.path)} — 합계 약 ${MB(root.total_mb)} <span class="dim">(폴더를 누르면 안을 재서 트리에 쌓아요)</span>`;
+  $('disklist').innerHTML = diskTreeHTML(window._diskRoot, 0) || '<span class="muted">비어 있음</span>';
+}
+async function diskOpen(idx) {
+  await api().open_in_explorer(window._diskNodes[idx].path);
+}
+async function diskCopy(idx) {
+  const p = window._diskNodes[idx].path;
+  const r = await api().copy_path(p);
+  $('disk-busy').innerHTML = r.ok ? `<span class="ok">📋 경로 복사됨:</span> <span class="dim">${esc(p)}</span>` : '복사 실패';
+  setTimeout(() => { if ($('disk-busy').innerHTML.includes('복사')) $('disk-busy').innerHTML = ''; }, 2500);
+}
+async function diskToggle(idx) {
+  const i = window._diskNodes[idx];
+  const key = dnorm(i.path);
+  if (window._diskOpen[key]) { window._diskOpen[key] = false; diskRender(); return; }
+  if (!window._diskCache[key]) { if (!await diskMeasure(i.path)) return; }
+  window._diskOpen[key] = true; diskRender();
+}
+async function diskGo(path) {
+  if (!await diskMeasure(path)) return;
+  window._diskRoot = path; diskRender();
+}
+function diskGoRoot(i) { diskGo(window._diskRoots[i].path); }
 async function diskRoots() {
   const roots = await api().disk_roots();
   window._diskRoots = roots;
   $('disk-roots').innerHTML = roots.map((r, i) =>
     `<button class="act" onclick="diskGoRoot(${i})">${esc(r.name)}</button>`).join(' ');
+}
+
+// ── 모서리 위젯 ──
+async function widgetToggle() {
+  const r = await api().widget_toggle();
+  $('widget-btn').textContent = r.on ? '📌 위젯 닫기' : '📌 모서리에 띄우기';
+}
+
+// ── 광고 차단 자가진단 ──
+async function adblockTest() {
+  $('adblock-test').innerHTML = '<span class="dim">대표 광고 도메인 3곳에 실제 연결을 시도하는 중...</span>';
+  const r = await api().adblock_test();
+  $('adblock-test').innerHTML =
+    `<div class="row"><b>${r.all_blocked ? '✅ 차단 작동 중' : '⚠️ 일부가 안 막혀요 (차단 꺼짐이거나 브라우저 DoH)'}</b></div>` +
+    r.items.map(i => `<div class="row"><span class="grow dim">${esc(i.domain)}</span>
+      <span class="${i.blocked ? 'ok' : 'warn'}">${i.blocked ? '차단됨 (' + esc(i.ip) + ')' : '뚫림 → ' + esc(i.ip)}</span></div>`).join('');
 }
 
 // ── 안 쓰는 것 탭 ──
@@ -309,7 +414,7 @@ async function separateChecked() {
 }
 async function unusedPrograms() {
   $('programlist').textContent = '확인 중...';
-  const r = await api().unused_programs();
+  const r = await api().unused_programs($('prog-days').value);
   if (r.error) { $('programlist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
   $('programlist').innerHTML = r.items.map(p => `
     <div class="row"><span class="grow">${esc(p.name)}</span>
