@@ -13,10 +13,41 @@ import json
 import os
 import re
 import subprocess
+import threading
 import urllib.parse
 import urllib.request
 
 from .winpaths import console_decode
+
+# 진행 상황 — UI 가 0.5초마다 폴링해서 1~100% 게이지로 보여준다
+_progress = {'running': False, 'pct': 0, 'stage': '', 'result': None}
+_lock = threading.Lock()
+
+
+def _set(pct, stage):
+    with _lock:
+        _progress['pct'] = int(pct); _progress['stage'] = stage
+
+
+def progress():
+    with _lock:
+        return dict(_progress)
+
+
+def start(online=True):
+    """점검을 백그라운드 스레드로 시작 — UI 는 progress() 를 폴링"""
+    with _lock:
+        if _progress['running']: return {'ok': False, 'error': '이미 점검 중'}
+        _progress.update(running=True, pct=1, stage='준비', result=None)
+    def run():
+        try:
+            res = scan(online=online)
+        except Exception as e:   # 어떤 오류도 UI 를 영원히 기다리게 하면 안 된다
+            res = {'items': [], 'counts': {'bad': 0, 'warn': 0, 'ok': 0}, 'error': str(e)}
+        with _lock:
+            _progress.update(running=False, pct=100, stage='완료', result=res)
+    threading.Thread(target=run, daemon=True).start()
+    return {'ok': True}
 
 E = os.path.expandvars
 NOWIN = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -106,11 +137,19 @@ def _bazaar_lookup(sha):
 
 
 def scan(online=True):
-    """전체 점검 — 항목마다 신호와 위험도(bad: 해시 일치, warn: 신호 1개 이상, ok)"""
+    """전체 점검 — 항목마다 신호와 위험도(bad: 해시 일치, warn: 신호 1개 이상, ok).
+    진행률: 수집 1~10 → 서명 검사 10~45(8개 묶음마다 갱신) → 신호·해시 45~99(파일마다 갱신)"""
+    _set(3, '점검 대상 모으는 중')
     targets = _targets()
-    sigs = _signatures([p for p, _ in targets])
+    _set(10, f'디지털 서명 검사 (0/{len(targets)})')
+    paths = [p for p, _ in targets]
+    sigs = {}
+    for b in range(0, len(paths), 8):
+        sigs.update(_signatures(paths[b:b + 8]))
+        _set(10 + 35 * min(b + 8, len(paths)) / max(1, len(paths)), f'디지털 서명 검사 ({min(b + 8, len(paths))}/{len(paths)})')
     items = []
-    for path, origin in targets:
+    for ti, (path, origin) in enumerate(targets):
+        _set(45 + 54 * ti / max(1, len(targets)), f'신호 분석·해시 조회 ({ti + 1}/{len(targets)})')
         flags = []
         sig = sigs.get(os.path.normcase(path), '?')
         if sig == 'HashMismatch': flags.append('서명 불일치(파일 변조 신호!)')
@@ -131,11 +170,36 @@ def scan(online=True):
                     level = 'bad'; flags.insert(0, f"악성 해시 DB 일치 — {baz['family']}")
         items.append({'path': path, 'name': os.path.basename(path), 'origin': origin,
                       'signature': sig, 'flags': flags, 'level': level,
-                      'db_checked': baz is not None})
+                      'db_checked': baz is not None, **_file_birth(path)})
     order = {'bad': 0, 'warn': 1, 'ok': 2}
     items.sort(key=lambda x: (order[x['level']], -len(x['flags'])))
     return {'items': items,
             'counts': {k: sum(1 for i in items if i['level'] == k) for k in ('bad', 'warn', 'ok')}}
+
+
+def _file_birth(path):
+    """파일이 언제 생겼나 + 어디서 받았나.
+    - created: 윈도우의 파일 생성 시각(다운로드 파일이면 받은 시점)
+    - source: 인터넷에서 받은 파일에 윈도우가 적어 두는 Zone.Identifier(Mark of the Web)의 출처 URL —
+      있으면 '인터넷에서 받은 파일'이라는 확실한 표식이고, 없으면 로컬 생성/복사본이다."""
+    import time as _t
+    out = {'created': None, 'source': None}
+    try:
+        out['created'] = _t.strftime('%Y-%m-%d', _t.localtime(os.stat(path).st_ctime))
+    except OSError:
+        pass
+    try:
+        with open(path + ':Zone.Identifier', encoding='utf-8', errors='ignore') as f:
+            for ln in f:
+                if ln.lower().startswith(('hosturl=', 'referrerurl=')):
+                    url = ln.split('=', 1)[1].strip()
+                    if url and not url.startswith('about:'):
+                        host = re.sub(r'^https?://([^/]+).*$', r'\1', url)
+                        out['source'] = host[:80]
+                        if ln.lower().startswith('hosturl='): break
+    except OSError:
+        pass
+    return out
 
 
 def defender_status():

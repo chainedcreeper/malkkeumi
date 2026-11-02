@@ -5,12 +5,37 @@
 아주 큰 시스템 폴더는 측정 상한에서 끊으므로 '약 ~ 이상' 근사치로 표시한다.
 """
 import os
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .cache_registry import dir_size
 from .winpaths import is_reparse
 
 CAP_ENTRIES = 300000   # 폴더 하나당 측정 상한 — Windows 폴더 같은 괴물에서 멈추지 않기 위함
+
+# 진행 상황 — UI 폴링용 (malscan 과 같은 패턴)
+_progress = {'running': False, 'pct': 0, 'stage': '', 'result': None}
+_lock = threading.Lock()
+
+
+def progress():
+    with _lock:
+        return dict(_progress)
+
+
+def start(path):
+    with _lock:
+        if _progress['running']: return {'ok': False, 'error': '이미 재는 중'}
+        _progress.update(running=True, pct=1, stage='폴더 목록 읽는 중', result=None)
+    def run():
+        try:
+            res = children(path)
+        except Exception as e:
+            res = {'error': str(e), 'items': [], 'path': path}
+        with _lock:
+            _progress.update(running=False, pct=100, stage='완료', result=res)
+    threading.Thread(target=run, daemon=True).start()
+    return {'ok': True}
 
 
 def children(path):
@@ -34,8 +59,16 @@ def children(path):
         # 상한에서 끊겼는지는 한 번 더 세어보지 않고, 상한 근처면 근사로 표시
         return {'name': os.path.basename(d) or d, 'path': d, 'is_dir': True,
                 'size_mb': round(size / 2**20, 1), 'capped': size >= CAP_ENTRIES * 4096}
+    items = []
     with ThreadPoolExecutor(max_workers=8) as ex:
-        items = list(ex.map(measure, dirs)) + files
+        futs = {ex.submit(measure, d): d for d in dirs}
+        for n, f in enumerate(as_completed(futs), 1):
+            items.append(f.result())
+            with _lock:
+                if _progress['running']:
+                    _progress['pct'] = int(5 + 93 * n / max(1, len(futs)))
+                    _progress['stage'] = f'폴더 크기 재는 중 ({n}/{len(futs)})'
+    items += files
     items.sort(key=lambda x: -x['size_mb'])
     total = sum(i['size_mb'] for i in items)
     for i in items:

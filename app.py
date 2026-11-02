@@ -26,9 +26,12 @@ class Api:
     def proc_kill(self, name, pids):
         return sysinfo.kill(name, pids)
 
-    # ── 악성 점검 탭 ──
-    def mal_scan(self):
-        return malscan.scan(online=True)
+    # ── 악성 점검 탭 (백그라운드 + 진행률 폴링) ──
+    def mal_scan_start(self):
+        return malscan.start(online=True)
+
+    def mal_scan_progress(self):
+        return malscan.progress()
 
     def defender_status(self):
         return malscan.defender_status()
@@ -92,6 +95,12 @@ class Api:
 
     def disk_children(self, path):
         return diskmap.children(path)
+
+    def disk_start(self, path):
+        return diskmap.start(path)
+
+    def disk_progress(self):
+        return diskmap.progress()
 
     # ── 중복 파일 ──
     def dupes_find(self, min_mb=10):

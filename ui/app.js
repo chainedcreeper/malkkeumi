@@ -123,9 +123,21 @@ async function defenderScan() {
   const r = await api().defender_quick_scan();
   alert(r.msg);
 }
+function progressBar(pct, stage) {
+  return `<div class="row"><div class="gauge" style="max-width:420px"><div style="width:${pct}%"></div></div>
+    <span style="width:52px;text-align:right"><b>${pct}%</b></span><span class="dim">${esc(stage)}</span></div>`;
+}
 async function malScan() {
-  $('mallist').innerHTML = '<div class="muted">점검 중... (서명 검사 + 해시 조회로 30초 정도)</div>';
-  const r = await api().mal_scan();
+  const st = await api().mal_scan_start();
+  if (!st.ok) return alert(st.error);
+  const r = await new Promise(resolve => {
+    const iv = setInterval(async () => {
+      const p = await api().mal_scan_progress();
+      $('mallist').innerHTML = progressBar(p.pct, p.stage);
+      if (!p.running && p.result) { clearInterval(iv); resolve(p.result); }
+    }, 400);
+  });
+  if (r.error) { $('mallist').innerHTML = `<span class="muted">점검 실패: ${esc(r.error)}</span>`; return; }
   const c = r.counts;
   const head = c.bad ? `<div class="notice">🚨 <b>악성 해시 DB와 일치하는 파일 ${c.bad}개!</b> — 직접 지우지 말고 Defender 전체 검사를 돌리세요.</div>`
     : `<div class="row"><b>${c.warn ? `⚠️ 점검 권장 ${c.warn}개` : '✅ 의심 신호 없음'}</b> <span class="dim">(실행파일 ${r.items.length}개 점검 · 악성 확정 0)</span></div>`;
@@ -134,6 +146,7 @@ async function malScan() {
       <span class="lv-${i.level}" style="width:52px">${i.level === 'bad' ? '위험' : '주의'}</span>
       <span class="grow"><b>${esc(i.name)}</b> <span class="dim">· ${esc(i.origin)}</span><br>
         <span class="dim">${esc(i.flags.join(' · '))}${i.db_checked ? ' · 해시 DB 조회함' : ''}</span><br>
+        <span class="dim">${i.created ? `생성/다운로드 ${i.created}` : ''}${i.source ? ` · 출처 ${esc(i.source)} (인터넷에서 받음)` : ''}</span>
         <span class="dim">${esc(i.path)}</span></span>
     </div>`).join('') + (c.warn || c.bad ? '' : '<div class="dim" style="padding-top:8px">전체 목록은 신호가 있을 때만 표시해요.</div>');
 }
@@ -225,8 +238,15 @@ function diskGoIdx(i) { diskGo(window._diskItems[i].path); }
 function diskGoRoot(i) { diskGo(window._diskRoots[i].path); }
 function diskGoUp() { if (window._diskParent) diskGo(window._diskParent); }
 async function diskGo(path) {
-  $('disklist').textContent = '재는 중...';
-  const r = await api().disk_children(path);
+  const st = await api().disk_start(path);
+  if (!st.ok) return;   // 이미 재는 중이면 무시
+  const r = await new Promise(resolve => {
+    const iv = setInterval(async () => {
+      const p = await api().disk_progress();
+      $('disklist').innerHTML = progressBar(p.pct, p.stage);
+      if (!p.running && p.result) { clearInterval(iv); resolve(p.result); }
+    }, 300);
+  });
   if (r.error) { $('disklist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
   window._diskItems = r.items; window._diskParent = r.parent;
   $('disk-path').innerHTML = `${esc(r.path)} — 합계 약 ${MB(r.total_mb)}` +
