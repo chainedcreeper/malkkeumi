@@ -5,7 +5,11 @@
 - 사용 중(잠긴) 파일은 건너뛰고 결과에 집계한다 — 실행 중인 브라우저가 있어도 안전.
 - 휴지통(send2trash)이 기본. '완전 삭제' 는 옵션(두 번째 확인 필요).
 """
+import json
 import os
+import time
+
+DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
 
 try:
     from send2trash import send2trash
@@ -54,7 +58,20 @@ def clean(path, permanent=False):
             removed += 1; freed += size
         except OSError:
             skipped += 1
-    return {'removed': removed, 'skipped': skipped, 'freed_mb': round(freed / 2**20)}
+    freed_mb = round(freed / 2**20)
+    if freed_mb > 0: _log_history(path, freed_mb)
+    return {'removed': removed, 'skipped': skipped, 'freed_mb': freed_mb}
+
+
+def _log_history(path, freed_mb):
+    """'지금까지 비운 공간' 누적 — 상태 탭의 자랑거리"""
+    os.makedirs(DATA, exist_ok=True)
+    hist_file = os.path.join(DATA, 'history.json')
+    try:
+        with open(hist_file, encoding='utf-8') as f: hist = json.load(f)
+    except (OSError, json.JSONDecodeError): hist = []
+    hist.append({'when': time.strftime('%Y-%m-%d %H:%M'), 'path': path, 'freed_mb': freed_mb})
+    with open(hist_file, 'w', encoding='utf-8') as f: json.dump(hist, f, ensure_ascii=False, indent=1)
 
 
 def _rm(p):

@@ -71,12 +71,15 @@ def save(reg):
 
 
 def check(reg):
-    """등록된 앱마다 현재 캐시 용량을 재서 상태를 돌려준다 (over = 임계치 초과)"""
-    out = []
-    for r in reg:
-        mb = round(dir_size(r['path']) / 2**20) if os.path.isdir(r['path']) else 0
-        out.append({**r, 'size_mb': mb, 'over': mb >= r['limit_mb'], 'exists': os.path.isdir(r['path'])})
-    return out
+    """등록된 앱마다 현재 캐시 용량을 재서 상태를 돌려준다 (over = 임계치 초과).
+    용량 측정은 디스크 대기가 대부분이라 스레드로 병렬 — 10GB짜리 폴더가 있어도 전체가 그만큼만 걸린다."""
+    from concurrent.futures import ThreadPoolExecutor
+    def one(r):
+        exists = os.path.isdir(r['path'])
+        mb = round(dir_size(r['path']) / 2**20) if exists else 0
+        return {**r, 'size_mb': mb, 'over': mb >= r['limit_mb'], 'exists': exists}
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        return list(ex.map(one, reg))
 
 
 def discover(reg, max_depth=4, min_mb=30):

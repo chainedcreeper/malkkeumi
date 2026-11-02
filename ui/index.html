@@ -55,6 +55,12 @@ h3{margin:4px 0 10px;font-size:15px}
       <button class="act" onclick="discover()">🔍 캐시 쓰는 앱 자동 서치</button></h3>
     <div id="cachelist" class="muted">점검 중...</div>
   </div>
+  <div class="card">
+    <h3>휴지통</h3>
+    <div class="row"><span id="recycle-state" class="grow dim">확인 중...</span>
+      <button class="act" onclick="recycleEmpty()">휴지통 비우기</button></div>
+    <div class="dim">말끔이의 청소는 휴지통을 거쳐요 — 며칠 지내보고 문제 없으면 여기서 마지막으로 비우면 돼요.</div>
+  </div>
   <div class="card" id="discover-card" style="display:none">
     <h3>자동 서치 결과 — 등록할 것을 고르세요</h3>
     <div id="discoverlist"></div>

@@ -14,7 +14,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from core import sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused, updater
+from core import sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused, updater, recycle, toast
 
 
 class Api:
@@ -68,6 +68,13 @@ class Api:
     def unused_undo(self, to_path):
         return unused.undo(to_path)
 
+    # ── 휴지통 ──
+    def recycle_status(self):
+        return recycle.status()
+
+    def recycle_empty(self):
+        return recycle.empty()
+
     # ── 업데이트 (깃허브 연결) ──
     def update_check(self):
         return updater.check()
@@ -98,6 +105,8 @@ def auto_clean():
     os.makedirs(os.path.dirname(log), exist_ok=True)
     with open(log, 'a', encoding='utf-8') as f:
         f.write(f"[{time.strftime('%Y-%m-%d %H:%M')}] " + ('; '.join(lines) or '임계치 초과 없음') + '\n')
+    if lines:   # 비운 게 있을 때만 토스트 — 매일 "할 일 없었음" 알림은 소음이다
+        toast.notify('말끔이 자동 청소', ' · '.join(lines))
 
 
 def main():

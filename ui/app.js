@@ -15,7 +15,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 async function refreshStatus() {
   try {
     const s = await api().status();
-    $('summary').textContent = s.summary;
+    $('summary').innerHTML = esc(s.summary) + (s.saved_total_mb > 0
+      ? `<br><span class="dim">지금까지 말끔이가 비운 공간: <b>${MB(s.saved_total_mb)}</b></span>` : '');
     const set = (g, t, pct, label) => {
       $(g).style.width = pct + '%'; $(g).className = pct >= 85 ? 'hot' : '';
       $(t).textContent = label;
@@ -65,6 +66,20 @@ async function registerOne(i) {
   if (!lim) return;
   await api().cache_register(`${f.app} 캐시`, f.path, parseInt(lim) || 512);
   cacheCheck(); discover();
+}
+
+// ── 휴지통 ──
+async function recycleState() {
+  const r = await api().recycle_status();
+  $('recycle-state').textContent = r.ok ? `${r.items}개 항목 · ${MB(r.size_mb)}` : '상태를 읽을 수 없음';
+}
+async function recycleEmpty() {
+  const r = await api().recycle_status();
+  if (!r.items) return alert('휴지통이 이미 비어 있어요');
+  if (!confirm(`휴지통의 ${r.items}개 항목(${MB(r.size_mb)})을 완전히 삭제해요.\n이건 되돌릴 수 없어요 — 비울까요?`)) return;
+  const e = await api().recycle_empty();
+  alert(e.ok ? `${MB(e.freed_mb)} 확보!` : '비우기 실패');
+  recycleState();
 }
 
 // ── 광고 탭 ──
@@ -169,5 +184,5 @@ async function updateRun() {
 for (let h = 0; h < 24; h++) $('sched-hour').insertAdjacentHTML('beforeend', `<option ${h === 21 ? 'selected' : ''}>${h}</option>`);
 window.addEventListener('pywebviewready', () => {
   refreshStatus(); setInterval(refreshStatus, 3000);
-  cacheCheck(); adblockBox(); schedState(); updateCheck();
+  cacheCheck(); adblockBox(); schedState(); updateCheck(); recycleState();
 });
