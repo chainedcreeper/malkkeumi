@@ -156,6 +156,9 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
       <select id="unused-days"><option value="90">3개월</option><option value="180" selected>6개월</option><option value="365">1년</option></select>
       <button class="act" onclick="unusedScan()">스캔</button>
       <button class="act" onclick="separateChecked()">선택한 것 보관함으로 분리</button></h3>
+    <div class="dim" style="margin-bottom:8px">💡 <b>보관함이란?</b> 바탕화면의 「말끔이 보관함」 <b>일반 폴더</b>예요 — 드라이브에 따로 생기는 특수 공간이 아니에요.
+      파일을 "이동"만 하는 거라 <b>디스크 공간은 줄지 않아요</b>. 지울까 말까 애매한 걸 치워두는 유예 공간이고,
+      원위치가 기록돼 되돌릴 수 있어요. 공간을 실제로 비우려면 보관함에서 한 달쯤 지나도 안 찾는 걸 삭제하세요.</div>
     <div id="unusedlist" class="muted">스캔을 눌러 시작</div>
   </div>
   <div class="card">
@@ -186,7 +189,9 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
     <h3>중복 파일 찾기
       <select id="dupes-min"><option value="5">5MB 이상</option><option value="10" selected>10MB 이상</option><option value="50">50MB 이상</option></select>
       <button class="act" onclick="dupesFind()">스캔</button></h3>
-    <div class="dim">크기 → 앞부분 해시 → 전체 해시 3단으로 확인해요 — 내용이 완전히 같은 파일만 중복으로 봐요.</div>
+    <div class="dim">크기 → 앞부분 해시 → 전체 해시 3단으로 확인해요 — 내용이 완전히 같은 파일만 중복으로 봐요.<br>
+      처리 3종: <b>보관함 분리</b>=바탕화면 「말끔이 보관함」 폴더로 이동(되돌리기 기록 있음, 공간은 안 줄어듦) ·
+      <b>바탕화면 모음</b>=「중복 파일 모음」 폴더로 이동(그냥 모아두기) · <b>휴지통 삭제</b>=휴지통으로(비우면 공간 확보).</div>
     <div id="dupeslist" class="muted">스캔을 눌러 시작</div>
   </div>
 </section>
