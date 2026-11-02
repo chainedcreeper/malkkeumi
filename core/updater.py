@@ -11,7 +11,7 @@ import os
 import subprocess
 import urllib.request
 
-REPO = 'kingdragon0716/malkkeumi'   # GitHub 리포 (owner/name)
+REPO = 'chainedcreeper/malkkeumi'   # GitHub 리포 (owner/name)
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION_FILE = os.path.join(HERE, 'VERSION')
 RAW_VERSION = f'https://raw.githubusercontent.com/{REPO}/main/VERSION'
