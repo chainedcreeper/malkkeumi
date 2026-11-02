@@ -50,7 +50,7 @@ async function cleanOne(path, name) {
 }
 async function discover() {
   $('discover-card').style.display = 'block';
-  $('discoverlist').textContent = 'AppData 전체를 뒤지는 중... (수십 초 걸릴 수 있어요)';
+  $('discoverlist').textContent = 'AppData 전체를 뒤지는 중... (몇 초면 끝나요)';
   const found = await api().cache_discover();
   $('discoverlist').innerHTML = found.map((f, i) => `
     <div class="row">

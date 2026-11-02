@@ -35,6 +35,7 @@ def _folder_last_used(path, cap=20000):
                     if seen > cap: return latest, total
                     try:
                         st = e.stat(follow_symlinks=False)
+                        if st.st_file_attributes & 0x400: continue   # 정션/심링크 — 무한 재귀 방지
                         if e.is_dir(follow_symlinks=False): stack.append(e.path)
                         else: total += st.st_size
                         latest = max(latest, st.st_atime, st.st_mtime)

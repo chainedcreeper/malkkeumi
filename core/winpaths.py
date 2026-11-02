@@ -45,3 +45,12 @@ def console_decode(raw):
         try: return raw.decode(enc)
         except (UnicodeDecodeError, LookupError): continue
     return raw.decode('utf-8', errors='replace')
+
+
+def is_reparse(entry):
+    """scandir 엔트리가 정션/심링크(리파스 포인트)인지 — 'Application Data' 같은 호환용 정션이
+    자기 자신을 가리켜 무한 재귀·중복을 만든다. 모든 폴더 순회는 이걸로 걸러야 한다."""
+    try:
+        return bool(entry.stat(follow_symlinks=False).st_file_attributes & 0x400)   # FILE_ATTRIBUTE_REPARSE_POINT
+    except OSError:
+        return True   # 못 읽으면 안 들어가는 쪽이 안전
