@@ -15,13 +15,26 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.base import APP_DIR as HERE, RES_DIR
 
 from core import (sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused,
-                  updater, recycle, toast, startup_ctl, diskmap, dupes)
+                  updater, recycle, toast, startup_ctl, diskmap, dupes, malscan)
 
 
 class Api:
     # ── 상태 탭 ──
     def status(self):
         return sysinfo.status()
+
+    def proc_kill(self, name, pids):
+        return sysinfo.kill(name, pids)
+
+    # ── 악성 점검 탭 ──
+    def mal_scan(self):
+        return malscan.scan(online=True)
+
+    def defender_status(self):
+        return malscan.defender_status()
+
+    def defender_quick_scan(self):
+        return malscan.defender_quick_scan()
 
     # ── 캐시 탭 ──
     def cache_check(self):

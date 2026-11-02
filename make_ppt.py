@@ -80,18 +80,18 @@ arrow(s, CX, 1.87, CX, 2.17)
 # 브리지
 box(s, 4.4, 2.17, 4.5, 0.6, 'Api 브리지 (app.py)', 13, True)
 arrow(s, CX, 2.77, CX, 3.07)
-# 코어 8모듈 (2행 x 4열)
+# 코어 8모듈 (2행 x 4열) — 오른쪽 GitHub 상자(x=11.15~)와 겹치지 않게 x0+폭 합계를 10.6 이내로
 mods = [('상태 진단', 'sysinfo'), ('캐시 등록부', 'cache_registry'), ('안전 삭제', 'cleaner'), ('광고 스캔', 'adscan'),
         ('hosts 차단', 'adblock'), ('안 쓰는 것', 'unused'), ('중복 파일', 'dupes'), ('디스크 지도', 'diskmap')]
-x0, y0, w, h, gx, gy = 2.0, 3.07, 2.2, 0.78, 0.13, 0.14
+x0, y0, w, h, gx, gy = 1.7, 3.07, 2.1, 0.78, 0.12, 0.14
 for i, (k, m) in enumerate(mods):
     box(s, x0 + (i % 4) * (w + gx), y0 + (i // 4) * (h + gy), w, h, f'{k}\n{m}.py', 11.5, fill=GRAY)
 arrow(s, CX, y0 + 2 * h + gy, CX, y0 + 2 * h + gy + 0.3)
-# 시스템 층
-box(s, 2.0, 5.15, 9.32, 0.72, '윈도우 시스템   —   파일 · 휴지통  |  레지스트리  |  hosts  |  작업 스케줄러', 13)
-# 깃허브 (옆)
-box(s, 11.0, 2.17, 1.9, 1.68, 'GitHub\n(updater.py)\n버전 비교\n→ 갱신', 11, fill=GRAY)
-arrow(s, 11.0, 3.0, 8.95, 2.5)
+# 시스템 층 (코어 그리드와 좌우 정렬)
+box(s, 1.7, 5.15, 8.76, 0.72, '윈도우 시스템   —   파일 · 휴지통  |  레지스트리  |  hosts  |  작업 스케줄러', 13)
+# 깃허브 (옆, 코어 그리드 오른쪽 끝 10.46 과 띄움)
+box(s, 11.15, 2.17, 1.85, 1.68, 'GitHub\n(updater.py)\n버전 비교\n→ 갱신', 11, fill=GRAY)
+arrow(s, 11.15, 2.6, 8.95, 2.5)
 label(s, 2.0, 6.3, 10, '배포: PyInstaller 단일 폴더 exe (파이썬 설치 불필요)  ·  데이터는 exe 옆 data/ 에만 기록', 12.5)
 
 OUT = '말끔이_발표.pptx'

@@ -11,22 +11,53 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   b.classList.add('on'); $(b.dataset.tab).classList.add('on');
 });
 
-// ── 상태 탭 (3초마다 갱신) ──
+// ── 상태 탭: 작업관리자 대체 (3초마다 갱신) ──
 async function refreshStatus() {
   try {
     const s = await api().status();
     $('summary').innerHTML = esc(s.summary) + (s.saved_total_mb > 0
-      ? `<br><span class="dim">지금까지 말끔이가 비운 공간: <b>${MB(s.saved_total_mb)}</b></span>` : '');
+      ? `<br><span class="dim">지금까지 말끔이가 비운 공간: <b>${MB(s.saved_total_mb)}</b> · 디스크 남은 공간 ${s.disk_free_gb}GB</span>`
+      : `<br><span class="dim">디스크 남은 공간 ${s.disk_free_gb}GB / ${s.disk_total_gb}GB</span>`);
     const set = (g, t, pct, label) => {
-      $(g).style.width = pct + '%'; $(g).className = pct >= 85 ? 'hot' : '';
-      $(t).textContent = label;
+      $(g).style.width = Math.min(100, pct) + '%'; $(g).className = pct >= 85 ? 'hot' : '';
+      $(t).innerHTML = label;
     };
-    set('g-cpu', 't-cpu', s.cpu_percent, s.cpu_percent + '%');
-    set('g-mem', 't-mem', s.mem_percent, `${s.mem_used_gb} / ${s.mem_total_gb} GB`);
-    set('g-disk', 't-disk', s.disk_percent, `남은 공간 ${s.disk_free_gb} GB`);
-    $('toplist').innerHTML = s.top.map(t =>
-      `<div class="row"><span class="grow">${esc(t.name)}${t.count > 1 ? ` <span class="dim">×${t.count}</span>` : ''}</span><span>${MB(t.mem_mb)}</span></div>`).join('');
+    set('g-cpu', 't-cpu', s.cpu_percent, `${s.cpu_percent}<small>%</small>`);
+    set('g-mem', 't-mem', s.mem_percent, `${s.mem_used_gb}<small> / ${s.mem_total_gb} GB</small>`);
+    if (s.gpu) {
+      set('g-gpu', 't-gpu', s.gpu.util, `${s.gpu.util}<small>% · VRAM ${s.gpu.vram_used_gb}/${s.gpu.vram_total_gb}GB</small>`);
+    } else { $('t-gpu').innerHTML = '<small>감지 안 됨</small>'; }
+    const temps = [];
+    if (s.cpu_temp !== null) temps.push(`CPU ${s.cpu_temp}°`);
+    if (s.gpu) temps.push(`GPU ${s.gpu.temp}°`);
+    $('t-temp').innerHTML = temps.length ? temps.join(' <small>·</small> ') : '<small>센서 없음</small>';
+    $('t-temp-sub').textContent = s.cpu_temp === null ? 'CPU 온도는 이 보드가 제공하지 않아요' : '';
+    window._top = s.top;
+    $('toplist').innerHTML = s.top.map((t, i) => `
+      <div class="row">
+        <span style="width:24px;text-align:right" class="dim">${i + 1}</span>
+        <span class="grow">${esc(t.name)}${t.count > 1 ? ` <span class="dim">×${t.count}</span>` : ''}</span>
+        <span style="width:90px;text-align:right">CPU ${t.cpu}%</span>
+        <span style="width:90px;text-align:right">${MB(t.mem_mb)}</span>
+        ${t.protected ? '<span class="dim" style="width:64px;text-align:center">시스템</span>'
+                      : `<button class="act danger" style="width:64px" onclick="killProc(${i})">종료</button>`}
+      </div>`).join('');
   } catch (e) { /* 브리지 준비 전 */ }
+}
+async function killProc(i) {
+  const t = window._top[i];
+  const extra = t.warn ? '\n(이걸 끄면 바탕화면·작업표시줄이 잠깐 깜빡여요 — 윈도우가 다시 살려요)' : '';
+  if (!confirm(`[${t.name}] ${t.count}개 프로세스를 종료해요.\n저장 안 한 작업이 있으면 날아가요!${extra}\n종료할까요?`)) return;
+  const r = await api().proc_kill(t.name, t.pids);
+  if (!r.ok) alert(r.error); else if (r.failed) alert(`${r.done}개 종료, ${r.failed}개는 권한 부족으로 실패`);
+  refreshStatus();
+}
+
+// ── 테마 (화이트/다크/저자극 — 선택 기억) ──
+function applyTheme(v) {
+  document.documentElement.dataset.theme = v;
+  localStorage.setItem('theme', v);
+  $('theme-sel').value = v;
 }
 
 // ── 캐시 탭 ──
@@ -66,6 +97,45 @@ async function registerOne(i) {
   if (!lim) return;
   await api().cache_register(`${f.app} 캐시`, f.path, parseInt(lim) || 512);
   cacheCheck(); discover();
+}
+
+async function cleanAllOver() {
+  const rows = (await api().cache_check()).filter(r => r.over && r.exists);
+  if (!rows.length) return alert('기준(임계치)을 넘은 캐시가 없어요 — 깨끗!');
+  const total = rows.reduce((a, r) => a + r.size_mb, 0);
+  if (!confirm(`기준 넘은 ${rows.length}곳(${rows.map(r => r.name).join(', ')}) 총 ${MB(total)} 를\n휴지통으로 한 번에 비울까요?`)) return;
+  let freed = 0;
+  for (const r of rows) { const res = await api().cache_clean(r.path, false); freed += res.freed_mb || 0; }
+  alert(`${MB(freed)} 비웠어요`);
+  cacheCheck(); recycleState();
+}
+
+// ── 악성 점검 탭 ──
+async function defenderBox() {
+  const d = await api().defender_status();
+  $('defender-box').innerHTML = d.ok
+    ? `<div class="row"><span class="grow">실시간 보호 ${d.realtime ? '<span class="ok">켜짐 ✓</span>' : '<span class="warn">꺼짐!</span>'}
+         <span class="dim"> · 백신 정의 ${esc(d.sig_date)} · 마지막 빠른 검사 ${esc(d.last_quick)}</span></span>
+       <button class="act" onclick="defenderScan()">빠른 검사 실행</button></div>`
+    : '<span class="muted">Defender 상태를 읽을 수 없어요 (다른 백신을 쓰는 중일 수 있어요)</span>';
+}
+async function defenderScan() {
+  const r = await api().defender_quick_scan();
+  alert(r.msg);
+}
+async function malScan() {
+  $('mallist').innerHTML = '<div class="muted">점검 중... (서명 검사 + 해시 조회로 30초 정도)</div>';
+  const r = await api().mal_scan();
+  const c = r.counts;
+  const head = c.bad ? `<div class="notice">🚨 <b>악성 해시 DB와 일치하는 파일 ${c.bad}개!</b> — 직접 지우지 말고 Defender 전체 검사를 돌리세요.</div>`
+    : `<div class="row"><b>${c.warn ? `⚠️ 점검 권장 ${c.warn}개` : '✅ 의심 신호 없음'}</b> <span class="dim">(실행파일 ${r.items.length}개 점검 · 악성 확정 0)</span></div>`;
+  $('mallist').innerHTML = head + r.items.filter(i => i.level !== 'ok').map(i => `
+    <div class="row">
+      <span class="lv-${i.level}" style="width:52px">${i.level === 'bad' ? '위험' : '주의'}</span>
+      <span class="grow"><b>${esc(i.name)}</b> <span class="dim">· ${esc(i.origin)}</span><br>
+        <span class="dim">${esc(i.flags.join(' · '))}${i.db_checked ? ' · 해시 DB 조회함' : ''}</span><br>
+        <span class="dim">${esc(i.path)}</span></span>
+    </div>`).join('') + (c.warn || c.bad ? '' : '<div class="dim" style="padding-top:8px">전체 목록은 신호가 있을 때만 표시해요.</div>');
 }
 
 // ── 휴지통 ──
@@ -242,7 +312,9 @@ async function updateRun() {
 
 // ── 시작 ──
 for (let h = 0; h < 24; h++) $('sched-hour').insertAdjacentHTML('beforeend', `<option ${h === 21 ? 'selected' : ''}>${h}</option>`);
+applyTheme(localStorage.getItem('theme') || 'light');
+$('theme-sel').onchange = e => applyTheme(e.target.value);
 window.addEventListener('pywebviewready', () => {
   refreshStatus(); setInterval(refreshStatus, 3000);
-  cacheCheck(); adblockBox(); schedState(); updateCheck(); recycleState(); diskRoots();
+  cacheCheck(); adblockBox(); schedState(); updateCheck(); recycleState(); diskRoots(); defenderBox();
 });
