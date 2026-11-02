@@ -35,6 +35,8 @@ h3{margin:4px 0 10px;font-size:15px}
   <button data-tab="cache">캐시 청소</button>
   <button data-tab="ad">광고 점검·차단</button>
   <button data-tab="unused">안 쓰는 것</button>
+  <button data-tab="dupes">중복 파일</button>
+  <button data-tab="disk">디스크 지도</button>
   <button data-tab="sched">자동 청소</button>
 </nav>
 <main>
@@ -92,6 +94,25 @@ h3{margin:4px 0 10px;font-size:15px}
     <h3>몇 달째 안 켠 프로그램 <button class="act" onclick="unusedPrograms()">확인</button></h3>
     <div class="dim">윈도우 실행 기록(Prefetch) 기준 — 삭제(제거)는 윈도우 설정 → 앱에서 하세요. 여기선 알려만 드려요.</div>
     <div id="programlist"></div>
+  </div>
+</section>
+
+<section id="dupes">
+  <div class="card">
+    <h3>중복 파일 찾기
+      <select id="dupes-min"><option value="5">5MB 이상</option><option value="10" selected>10MB 이상</option><option value="50">50MB 이상</option></select>
+      <button class="act" onclick="dupesFind()">스캔</button></h3>
+    <div class="dim">크기 → 앞부분 해시 → 전체 해시 3단으로 확인해요 — 내용이 완전히 같은 파일만 중복으로 봐요.</div>
+    <div id="dupeslist" class="muted">스캔을 눌러 시작</div>
+  </div>
+</section>
+
+<section id="disk">
+  <div class="card">
+    <h3>디스크 지도 — 어디가 공간을 먹고 있나 <span id="disk-roots"></span></h3>
+    <div class="dim">폴더를 누르면 그 안으로 들어가요. 한 계층씩만 재니까 기다림이 없어요.</div>
+    <div id="disk-path" class="dim" style="padding:6px 0"></div>
+    <div id="disklist" class="muted">출발점을 고르세요</div>
   </div>
 </section>
 

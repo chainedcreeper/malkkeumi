@@ -47,16 +47,21 @@ def startup_items():
                 with winreg.OpenKey(hive, keypath) as k:
                     for i in range(winreg.QueryInfoKey(k)[1]):
                         name, val, _ = winreg.EnumValue(k, i)
+                        from .startup_ctl import run_state
+                        en = run_state(hname, name)
                         out.append({'kind': '레지스트리 자동실행', 'name': name, 'detail': str(val),
-                                    'where': f'{hname}\\{keypath}', 'suspect': _suspicious(name + ' ' + str(val))})
+                                    'where': f'{hname}\\{keypath}', 'suspect': _suspicious(name + ' ' + str(val)),
+                                    'ctl': f'run:{hname}:{name}', 'enabled': en is not False})
             except OSError: continue
     for folder in (E(r'%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup'),
                    E(r'%ProgramData%\Microsoft\Windows\Start Menu\Programs\StartUp')):
         for f in glob.glob(os.path.join(folder, '*')):
             n = os.path.basename(f)
             if n.lower() == 'desktop.ini': continue
+            from .startup_ctl import folder_state
+            en = folder_state(n)
             out.append({'kind': '시작프로그램 폴더', 'name': n, 'detail': f, 'where': folder,
-                        'suspect': _suspicious(n)})
+                        'suspect': _suspicious(n), 'ctl': f'folder:{n}', 'enabled': en is not False})
     return out
 
 
@@ -75,12 +80,14 @@ def scheduled_tasks():
     for row in rows:
         tn = row.get('작업 이름') or row.get('TaskName') or ''
         action = row.get('실행할 작업') or row.get('Task To Run') or ''
+        state = row.get('예약된 작업 상태') or row.get('Scheduled Task State') or ''
         if not tn or tn in seen or tn.startswith('\\Microsoft\\'): continue
         seen.add(tn)
         if tn == '작업 이름': continue   # /v 모드의 반복 헤더 행
         out.append({'kind': '작업 스케줄러', 'name': tn, 'detail': action,
                     'where': 'C:\\Windows\\System32\\Tasks' + tn,
-                    'suspect': _suspicious(tn + ' ' + action)})
+                    'suspect': _suspicious(tn + ' ' + action),
+                    'ctl': f'task:{tn}', 'enabled': state not in ('사용 안 함', 'Disabled')})
     return out
 
 

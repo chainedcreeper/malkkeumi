@@ -109,11 +109,64 @@ async function adScan() {
   const n = items.filter(i => i.suspect).length;
   $('adlist').innerHTML =
     `<div class="row"><b>${n ? '⚠️ 주의 항목 ' + n + '개' : '✅ 광고성으로 보이는 항목 없음'}</b> <span class="dim">(전체 ${items.length}개 점검)</span></div>` +
-    items.map(i => `
+    items.map((i, idx) => `
     <div class="row">
       <span style="width:110px" class="dim">${esc(i.kind)}</span>
-      <span class="grow">${i.suspect ? '⚠️ ' : ''}<b>${esc(i.name)}</b><br><span class="dim">${esc(i.detail)}</span></span>
+      <span class="grow">${i.suspect ? '⚠️ ' : ''}${i.enabled === false ? '<s>' : ''}<b>${esc(i.name)}</b>${i.enabled === false ? '</s> <span class="dim">(꺼짐)</span>' : ''}<br><span class="dim">${esc(i.detail)}</span></span>
+      ${i.ctl ? `<button class="act" onclick="startupToggle(${idx}, ${i.enabled === false})">${i.enabled === false ? '켜기' : '끄기'}</button>` : ''}
     </div>`).join('');
+  window._aditems = items;
+}
+
+async function startupToggle(idx, enable) {
+  const i = window._aditems[idx];
+  const what = enable ? '다시 켜요' : '꺼요 (삭제 아님 — 작업관리자 방식, 언제든 되돌림)';
+  if (!confirm(`[${i.name}] 자동 실행을 ${what}.
+진행할까요?`)) return;
+  const r = await api().startup_toggle(i.ctl, enable);
+  alert(r.ok ? '완료 — 다음 부팅/로그인부터 적용돼요' : '실패: ' + r.error);
+  adScan();
+}
+
+// ── 중복 파일 탭 ──
+async function dupesFind() {
+  $('dupeslist').textContent = '스캔 중... (파일 수에 따라 수십 초)';
+  const r = await api().dupes_find($('dupes-min').value);
+  if (!r.groups.length) { $('dupeslist').innerHTML = '<span class="muted">중복 파일이 없어요. 깨끗!</span>'; return; }
+  $('dupeslist').innerHTML =
+    `<div class="notice">같은 파일이 겹쳐서 낭비되는 공간: <b>${MB(r.wasted_total_mb)}</b></div>` +
+    r.groups.map(g => `
+    <div class="row"><span class="grow">
+      ${g.files.map((f, i) => `<div>${i === 0 ? '📌 ' : '🔁 '}<span class="dim">${esc(f)}</span></div>`).join('')}
+    </span><span>${MB(g.size_mb)} ×${g.files.length}</span>
+    <button class="act" onclick='dupesSeparate(${JSON.stringify(g.files.slice(1))})'>사본 분리</button></div>`).join('');
+}
+async function dupesSeparate(paths) {
+  if (!confirm(`사본 ${paths.length}개를 보관함으로 옮겨요 (첫 번째 파일은 원본으로 남김, 삭제 아님).`)) return;
+  const r = await api().unused_separate(paths);
+  alert(`옮김 ${r.moved}개 — ${r.archive}`);
+  dupesFind();
+}
+
+// ── 디스크 지도 탭 ──
+async function diskGo(path) {
+  $('disklist').textContent = '재는 중...';
+  const r = await api().disk_children(path);
+  if (r.error) { $('disklist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
+  $('disk-path').innerHTML = `${esc(r.path)} — 합계 약 ${MB(r.total_mb)}` +
+    (r.parent ? ` <button class="act" onclick="diskGo('${esc(r.parent).replace(/\/g, '\\')}')">⬆ 위로</button>` : '');
+  $('disklist').innerHTML = r.items.map(i => `
+    <div class="row">
+      <span style="width:46px;text-align:right">${i.pct}%</span>
+      <div class="gauge" style="max-width:220px"><div style="width:${Math.min(100, i.pct)}%"></div></div>
+      <span class="grow">${i.is_dir ? `<a href="#" onclick="diskGo('${esc(i.path).replace(/\/g, '\\')}'); return false">📁 ${esc(i.name)}</a>` : esc(i.name)}</span>
+      <span>${i.capped ? '약 ' : ''}${MB(i.size_mb)}${i.capped ? ' 이상' : ''}</span>
+    </div>`).join('');
+}
+async function diskRoots() {
+  const roots = await api().disk_roots();
+  $('disk-roots').innerHTML = roots.map(r =>
+    `<button class="act" onclick="diskGo('${r.path.replace(/\/g, '\\')}')">${esc(r.name)}</button>`).join(' ');
 }
 
 // ── 안 쓰는 것 탭 ──
@@ -184,5 +237,5 @@ async function updateRun() {
 for (let h = 0; h < 24; h++) $('sched-hour').insertAdjacentHTML('beforeend', `<option ${h === 21 ? 'selected' : ''}>${h}</option>`);
 window.addEventListener('pywebviewready', () => {
   refreshStatus(); setInterval(refreshStatus, 3000);
-  cacheCheck(); adblockBox(); schedState(); updateCheck(); recycleState();
+  cacheCheck(); adblockBox(); schedState(); updateCheck(); recycleState(); diskRoots();
 });

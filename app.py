@@ -14,7 +14,8 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from core import sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused, updater, recycle, toast
+from core import (sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused,
+                  updater, recycle, toast, startup_ctl, diskmap, dupes)
 
 
 class Api:
@@ -67,6 +68,21 @@ class Api:
 
     def unused_undo(self, to_path):
         return unused.undo(to_path)
+
+    # ── 시작프로그램 끄기/켜기 (작업관리자 방식의 가역 비활성화) ──
+    def startup_toggle(self, ctl, enable):
+        return startup_ctl.toggle(ctl, bool(enable))
+
+    # ── 디스크 지도 ──
+    def disk_roots(self):
+        return diskmap.roots()
+
+    def disk_children(self, path):
+        return diskmap.children(path)
+
+    # ── 중복 파일 ──
+    def dupes_find(self, min_mb=10):
+        return dupes.find(min_mb)
 
     # ── 휴지통 ──
     def recycle_status(self):
