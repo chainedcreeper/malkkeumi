@@ -1,0 +1,7 @@
+data/registry.json
+data/moves.json
+data/*.log
+data/blocklist.txt
+data/hosts.backup.*
+__pycache__/
+core/__pycache__/
