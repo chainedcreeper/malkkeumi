@@ -7,6 +7,7 @@
 """
 import json
 import os
+import threading
 import time
 
 from .base import DATA
@@ -16,6 +17,31 @@ try:
     HAS_TRASH = True
 except ImportError:
     HAS_TRASH = False
+
+# 진행 상황 — 비우기도 '몇 % 진행 중'을 보여준다 (malscan·diskmap 과 같은 패턴)
+_progress = {'running': False, 'pct': 0, 'stage': '', 'result': None}
+_lock = threading.Lock()
+
+
+def progress():
+    with _lock:
+        return dict(_progress)
+
+
+def start(path, permanent=False, label=''):
+    """비우기를 백그라운드로 시작 — UI 는 progress() 폴링. label 은 진행 문구용 앱 이름."""
+    with _lock:
+        if _progress['running']: return {'ok': False, 'error': '이미 비우는 중'}
+        _progress.update(running=True, pct=1, stage=f'{label} 목록 읽는 중', result=None)
+    def run():
+        try:
+            res = clean(path, permanent, _label=label)
+        except Exception as e:
+            res = {'removed': 0, 'skipped': 0, 'freed_mb': 0, 'error': str(e)}
+        with _lock:
+            _progress.update(running=False, pct=100, stage='완료', result=res)
+    threading.Thread(target=run, daemon=True).start()
+    return {'ok': True}
 
 
 def preview(path, max_items=5000):
@@ -39,15 +65,19 @@ def preview(path, max_items=5000):
             'total_mb': round(total / 2**20)}
 
 
-def clean(path, permanent=False):
+def clean(path, permanent=False, _label=''):
     """path 폴더의 내용물을 휴지통으로(기본) 또는 완전 삭제(permanent). 잠긴 파일은 건너뜀.
-    반환: {removed, skipped, freed_mb}"""
+    반환: {removed, skipped, freed_mb}. 항목 하나 지날 때마다 진행률 갱신."""
     removed = skipped = freed = 0
     try:
         entries = list(os.scandir(path))
     except OSError:
         return {'removed': 0, 'skipped': 0, 'freed_mb': 0, 'error': '폴더를 열 수 없음'}
-    for e in entries:
+    for n, e in enumerate(entries, 1):
+        with _lock:
+            if _progress['running']:
+                _progress['pct'] = int(2 + 97 * n / max(1, len(entries)))
+                _progress['stage'] = f'{_label} 비우는 중 ({n}/{len(entries)}개 · {round(freed / 2**20)}MB)'
         try:
             from .cache_registry import dir_size
             size = e.stat().st_size if e.is_file(follow_symlinks=False) else dir_size(e.path)

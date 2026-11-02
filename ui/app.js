@@ -72,12 +72,26 @@ async function cacheCheck() {
       ${r.exists ? `<button class="act" onclick="cleanOne('${esc(r.path).replace(/\\/g, '\\\\')}', '${esc(r.name)}')">비우기</button>` : ''}
     </div>`).join('') || '<span class="muted">등록된 대상이 없어요 — 자동 서치를 눌러 보세요.</span>';
 }
+async function cleanWithProgress(path, name) {
+  // 비우기 실행 + 목록 상단에 % 진행 표시 — alert 대신 인라인 결과 배너
+  const st = await api().cache_clean_start(path, name);
+  if (!st.ok) { alert(st.error); return null; }
+  return await new Promise(resolve => {
+    const iv = setInterval(async () => {
+      const p = await api().cache_clean_progress(path);
+      $('cachelist').innerHTML = progressBar(p.pct, p.stage);
+      if (!p.running && p.result) { clearInterval(iv); resolve(p.result); }
+    }, 300);
+  });
+}
 async function cleanOne(path, name) {
   const pv = await api().cache_preview(path);
   if (!confirm(`[${name}]\n${pv.count}개 항목, 총 ${MB(pv.total_mb)} 를 휴지통으로 비울까요?\n(사용 중인 파일은 자동으로 건너뜀)`)) return;
-  const res = await api().cache_clean(path, false);
-  alert(res.error ? '실패: ' + res.error : `${MB(res.freed_mb)} 비웠어요 (건너뜀 ${res.skipped}개 — 사용 중)`);
-  cacheCheck();
+  const res = await cleanWithProgress(path, name);
+  await cacheCheck();
+  if (res) $('cachelist').insertAdjacentHTML('afterbegin', res.error
+    ? `<div class="notice">실패: ${esc(res.error)}</div>`
+    : `<div class="notice">✅ [${esc(name)}] <b>${MB(res.freed_mb)}</b> 비웠어요 — ${res.removed}개 휴지통행${res.skipped ? `, ${res.skipped}개는 사용 중이라 건너뜀` : ''}</div>`);
 }
 async function discover() {
   $('discover-card').style.display = 'block';
@@ -105,9 +119,13 @@ async function cleanAllOver() {
   const total = rows.reduce((a, r) => a + r.size_mb, 0);
   if (!confirm(`기준 넘은 ${rows.length}곳(${rows.map(r => r.name).join(', ')}) 총 ${MB(total)} 를\n휴지통으로 한 번에 비울까요?`)) return;
   let freed = 0;
-  for (const r of rows) { const res = await api().cache_clean(r.path, false); freed += res.freed_mb || 0; }
-  alert(`${MB(freed)} 비웠어요`);
-  cacheCheck(); recycleState();
+  for (let i = 0; i < rows.length; i++) {
+    const res = await cleanWithProgress(rows[i].path, `(${i + 1}/${rows.length}) ${rows[i].name}`);
+    if (res) freed += res.freed_mb || 0;
+  }
+  await cacheCheck(); recycleState();
+  $('cachelist').insertAdjacentHTML('afterbegin',
+    `<div class="notice">✅ ${rows.length}곳에서 총 <b>${MB(freed)}</b> 비웠어요</div>`);
 }
 
 // ── 악성 점검 탭 ──

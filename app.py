@@ -58,6 +58,15 @@ class Api:
             cache_registry.mark_cleaned(cache_registry.load(), path)
         return res
 
+    def cache_clean_start(self, path, label='', permanent=False):
+        return cleaner.start(path, permanent, label)
+
+    def cache_clean_progress(self, path=None):
+        p = cleaner.progress()
+        if path and not p['running'] and p['result'] and not p['result'].get('error'):
+            cache_registry.mark_cleaned(cache_registry.load(), path)
+        return p
+
     # ── 광고 탭 ──
     def ad_scan(self):
         return adscan.scan()
