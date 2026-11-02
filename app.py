@@ -131,8 +131,8 @@ class Api:
         items = unused.scan(days=int(days))
         return {'items': items, 'notice': unused.notice(items)}
 
-    def unused_programs(self, days=60):
-        return unused.scan_programs(days=int(days))
+    def unused_programs(self, days=60, since=None):
+        return unused.scan_programs(days=int(days), since=since or None)
 
     # ── 파일 정리(해석 후 삭제) 탭 ──
     def files_browse(self, where='downloads'):

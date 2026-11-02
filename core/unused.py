@@ -74,8 +74,9 @@ def scan(days=180, min_mb=30, max_items=100):
     return out[:max_items]
 
 
-def scan_programs(days=60):
-    """Prefetch 실행 기록으로 '오래 안 켠 프로그램' (앱 단위). 관리자 권한 없으면 그 사실을 알림."""
+def scan_programs(days=60, since=None):
+    """Prefetch 실행 기록으로 '오래 안 켠 프로그램' (앱 단위). 관리자 권한 없으면 그 사실을 알림.
+    since='YYYY-MM-DD' 를 주면 '그 날짜 이후로 한 번도 안 켠 것' 기준 — days 보다 우선."""
     pf_dir = r'C:\Windows\Prefetch'
     progs = {}
     try:
@@ -90,12 +91,19 @@ def scan_programs(days=60):
         return {'error': '프로그램 실행 기록(Prefetch)은 관리자 권한으로 실행해야 보여요.', 'items': []}
     except OSError:
         return {'error': '실행 기록을 읽을 수 없음', 'items': []}
-    cutoff = time.time() - days * 86400
+    if since:
+        try:
+            cutoff = time.mktime(time.strptime(since, '%Y-%m-%d'))
+        except ValueError:
+            cutoff = time.time() - days * 86400
+    else:
+        cutoff = time.time() - days * 86400
     items = [{'name': exe, 'last_run': time.strftime('%Y-%m-%d', time.localtime(mt)),
               'days': int((time.time() - mt) // 86400)}
              for exe, mt in progs.items() if mt < cutoff]
     items.sort(key=lambda x: -x['days'])
-    return {'error': None, 'items': items[:100]}
+    return {'error': None, 'items': items[:100],
+            'criteria': f'{since} 이후 안 켠 것' if since else f'{days}일 이상 안 켠 것'}
 
 
 # 파일 해석 사전 — "이 파일이 뭔지"를 사람 말로

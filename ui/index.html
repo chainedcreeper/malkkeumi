@@ -161,7 +161,10 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
   <div class="card">
     <h3>안 켠 프로그램 찾기 — 기준:
       <select id="prog-days"><option value="30">1개월</option><option value="60" selected>2개월</option><option value="90">3개월</option><option value="180">6개월</option></select>
-      이상 안 켠 것 <button class="act" onclick="unusedPrograms()">확인</button></h3>
+      이상 안 켠 것 — 또는 상세 날짜 <input type="date" id="prog-date"
+        style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;background:var(--panel);color:var(--text);font-family:inherit;font-size:12.5px">
+      이후 안 켠 것 <button class="act" onclick="unusedPrograms()">확인</button>
+      <button class="act" onclick="$('prog-date').value=''; unusedPrograms()" title="날짜 지우고 기간 기준으로">기간으로</button></h3>
     <div class="dim">윈도우 실행 기록(Prefetch) 기준 — 삭제(제거)는 윈도우 설정 → 앱에서 하세요. 여기선 알려만 드려요.</div>
     <div id="programlist"></div>
   </div>

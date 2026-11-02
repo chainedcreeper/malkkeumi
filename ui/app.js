@@ -428,9 +428,9 @@ async function separateChecked() {
 }
 async function unusedPrograms() {
   $('programlist').textContent = '확인 중...';
-  const r = await api().unused_programs($('prog-days').value);
+  const r = await api().unused_programs($('prog-days').value, $('prog-date').value || null);
   if (r.error) { $('programlist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
-  $('programlist').innerHTML = r.items.map(p => `
+  $('programlist').innerHTML = `<div class="row"><b>${esc(r.criteria || '')}</b> <span class="dim">— ${r.items.length}개</span></div>` + r.items.map(p => `
     <div class="row"><span class="grow">${esc(p.name)}</span>
       <span class="dim">마지막 실행 ${p.last_run} (${p.days}일 전)</span></div>`).join('')
     || '<span class="muted">두 달 넘게 안 켠 프로그램이 없어요.</span>';
