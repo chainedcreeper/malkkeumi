@@ -14,7 +14,7 @@ import winreg
 
 from .winpaths import is_reparse
 
-DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+from .base import DATA
 REG_FILE = os.path.join(DATA, 'registry.json')
 
 E = os.path.expandvars

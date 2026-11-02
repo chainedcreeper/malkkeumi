@@ -12,7 +12,7 @@ import subprocess
 import urllib.request
 
 REPO = 'chainedcreeper/malkkeumi'   # GitHub 리포 (owner/name)
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+from .base import APP_DIR as HERE
 VERSION_FILE = os.path.join(HERE, 'VERSION')
 RAW_VERSION = f'https://raw.githubusercontent.com/{REPO}/main/VERSION'
 RELEASES = f'https://github.com/{REPO}/releases/latest'

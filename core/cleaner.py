@@ -9,7 +9,7 @@ import json
 import os
 import time
 
-DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+from .base import DATA
 
 try:
     from send2trash import send2trash

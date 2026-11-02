@@ -6,7 +6,7 @@ import time
 
 import psutil
 
-DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+from .base import DATA
 psutil.cpu_percent(interval=None)   # 첫 호출 기준점 — 이후 호출은 기다리지 않고 구간 평균을 준다
 
 

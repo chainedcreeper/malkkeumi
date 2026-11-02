@@ -18,7 +18,7 @@ HOSTS = r'C:\Windows\System32\drivers\etc\hosts'
 MARK_BEGIN = '# ===== BEGIN 말끔이 광고 차단 ====='
 MARK_END = '# ===== END 말끔이 광고 차단 ====='
 LIST_URL = 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts'   # 광고+악성 통합(중복 제거) 목록
-DATA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+from .base import DATA
 
 
 def is_admin():

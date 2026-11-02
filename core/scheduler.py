@@ -7,8 +7,10 @@ import os
 import subprocess
 import sys
 
+from .base import APP_DIR, FROZEN
+
 TASK = 'Malkkeumi_AutoClean'
-APP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'app.py')
+APP = os.path.join(APP_DIR, 'app.py')
 
 
 def _run(args):
@@ -27,9 +29,12 @@ def status():
 
 def register(hour=21):
     """매일 hour시에 자동 청소 — pythonw(창 없음)로"""
-    py = sys.executable.replace('python.exe', 'pythonw.exe')
-    if not os.path.exists(py): py = sys.executable
-    cmd = f'"{py}" "{APP}" --auto-clean'
+    if FROZEN:
+        cmd = f'"{sys.executable}" --auto-clean'   # exe 자신을 부른다
+    else:
+        py = sys.executable.replace('python.exe', 'pythonw.exe')
+        if not os.path.exists(py): py = sys.executable
+        cmd = f'"{py}" "{APP}" --auto-clean'
     ok, msg = _run(['schtasks', '/create', '/f', '/tn', TASK, '/sc', 'daily',
                     '/st', f'{int(hour):02d}:00', '/tr', cmd])
     return {'ok': ok, 'msg': msg}

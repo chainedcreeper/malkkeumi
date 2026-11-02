@@ -11,8 +11,8 @@ import os
 import sys
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from core.base import APP_DIR as HERE, RES_DIR
 
 from core import (sysinfo, cache_registry, cleaner, adscan, adblock, scheduler, unused,
                   updater, recycle, toast, startup_ctl, diskmap, dupes)
@@ -137,7 +137,7 @@ def main():
     import webview
     api = Api()
     webview.create_window('말끔이 — 내 컴퓨터 청소 매니저',
-                          os.path.join(HERE, 'ui', 'index.html'),
+                          os.path.join(RES_DIR, 'ui', 'index.html'),
                           js_api=api, width=1100, height=760, min_size=(900, 600))
     webview.start()
 
