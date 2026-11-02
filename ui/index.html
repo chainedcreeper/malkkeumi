@@ -4,29 +4,45 @@
 <meta charset="utf-8">
 <title>말끔이</title>
 <style>
-/* 기능 우선 단계 — 디자인은 나중에 손봄 (레이아웃만 잡은 상태) */
-body{font-family:'Malgun Gothic',sans-serif;margin:0;background:#f4f5f7;color:#222}
-nav{display:flex;gap:4px;background:#2b2f3a;padding:8px 12px}
-nav button{border:0;background:transparent;color:#cfd3dd;padding:8px 14px;font-size:14px;cursor:pointer;border-radius:6px}
-nav button.on{background:#4a5164;color:#fff}
-main{padding:16px;max-width:1040px;margin:0 auto}
-section{display:none}section.on{display:block}
-.card{background:#fff;border-radius:8px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eee;font-size:13.5px}
+/* 말끔이 1.0 — 밝고 단정한 단일 테마. 장식보다 간격·위계·일관성으로 "정교함"을 보여준다 */
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --line:#e4e7ec; --text:#1c2330; --sub:#7b8494;
+  --accent:#3563e9; --accent-soft:#eef3ff; --danger:#d4453a; --good:#1f9d61;
+}
+*{box-sizing:border-box}
+body{font-family:'Segoe UI','Malgun Gothic',sans-serif;margin:0;background:var(--bg);color:var(--text);font-size:14px}
+nav{display:flex;gap:2px;background:#171b26;padding:10px 14px 0;position:sticky;top:0;z-index:5}
+nav button{border:0;background:transparent;color:#9aa3b5;padding:10px 16px 12px;font-size:13.5px;font-weight:600;
+  cursor:pointer;border-radius:10px 10px 0 0;font-family:inherit;letter-spacing:-.2px}
+nav button:hover{color:#dfe4ee}
+nav button.on{background:var(--bg);color:var(--text)}
+main{padding:20px;max-width:1040px;margin:0 auto}
+section{display:none}section.on{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+h3{margin:0 0 12px;font-size:15px;font-weight:700;letter-spacing:-.2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .row:last-child{border-bottom:0}
 .grow{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dim{color:#888;font-size:12px}
-.warn{color:#c0392b;font-weight:bold}
-.ok{color:#27ae60}
-button.act{border:1px solid #bbb;background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12.5px}
-button.act:hover{background:#eef}
-.gauge{height:10px;background:#e8e9ee;border-radius:5px;overflow:hidden;flex:1}
-.gauge>div{height:100%;background:#5b8def}
-.gauge>div.hot{background:#e06050}
-#summary{font-size:16px;padding:14px}
-h3{margin:4px 0 10px;font-size:15px}
-.notice{background:#fff6e0;border:1px solid #e8c468;border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px}
-.muted{color:#999}
+.dim{color:var(--sub);font-size:12px;font-weight:400}
+.warn{color:var(--danger);font-weight:700}
+.ok{color:var(--good);font-weight:600}
+.muted{color:var(--sub)}
+button.act{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;
+  padding:6px 12px;cursor:pointer;font-size:12.5px;font-weight:600;font-family:inherit;transition:all .12s}
+button.act:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-family:inherit;font-size:12.5px;background:var(--panel);color:var(--text)}
+.gauge{height:8px;background:#e9ecf2;border-radius:4px;overflow:hidden;flex:1}
+.gauge>div{height:100%;background:var(--accent);border-radius:4px;transition:width .5s ease}
+.gauge>div.hot{background:var(--danger)}
+#summary{font-size:17px;font-weight:600;padding:20px;line-height:1.55;
+  background:linear-gradient(135deg,#ffffff, #f2f6ff);border-color:#dbe4f5}
+#summary .dim{font-size:13px;font-weight:400}
+.notice{background:#fff8e6;border:1px solid #f0d890;border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:14px;line-height:1.5}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:#cdd3de;border-radius:5px}
 </style>
 </head>
 <body>

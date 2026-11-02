@@ -149,24 +149,31 @@ async function dupesSeparate(paths) {
 }
 
 // ── 디스크 지도 탭 ──
+// 경로는 HTML 속성에 직접 넣지 않는다(백슬래시·따옴표 이스케이프 지옥) — 배열에 담고 인덱스로 부른다
+window._diskItems = []; window._diskRoots = []; window._diskParent = null;
+function diskGoIdx(i) { diskGo(window._diskItems[i].path); }
+function diskGoRoot(i) { diskGo(window._diskRoots[i].path); }
+function diskGoUp() { if (window._diskParent) diskGo(window._diskParent); }
 async function diskGo(path) {
   $('disklist').textContent = '재는 중...';
   const r = await api().disk_children(path);
   if (r.error) { $('disklist').innerHTML = `<span class="muted">${esc(r.error)}</span>`; return; }
+  window._diskItems = r.items; window._diskParent = r.parent;
   $('disk-path').innerHTML = `${esc(r.path)} — 합계 약 ${MB(r.total_mb)}` +
-    (r.parent ? ` <button class="act" onclick="diskGo('${esc(r.parent).replace(/\/g, '\\')}')">⬆ 위로</button>` : '');
-  $('disklist').innerHTML = r.items.map(i => `
+    (r.parent ? ` <button class="act" onclick="diskGoUp()">⬆ 위로</button>` : '');
+  $('disklist').innerHTML = r.items.map((i, idx) => `
     <div class="row">
       <span style="width:46px;text-align:right">${i.pct}%</span>
       <div class="gauge" style="max-width:220px"><div style="width:${Math.min(100, i.pct)}%"></div></div>
-      <span class="grow">${i.is_dir ? `<a href="#" onclick="diskGo('${esc(i.path).replace(/\/g, '\\')}'); return false">📁 ${esc(i.name)}</a>` : esc(i.name)}</span>
+      <span class="grow">${i.is_dir ? `<a href="#" onclick="diskGoIdx(${idx}); return false">📁 ${esc(i.name)}</a>` : esc(i.name)}</span>
       <span>${i.capped ? '약 ' : ''}${MB(i.size_mb)}${i.capped ? ' 이상' : ''}</span>
     </div>`).join('');
 }
 async function diskRoots() {
   const roots = await api().disk_roots();
-  $('disk-roots').innerHTML = roots.map(r =>
-    `<button class="act" onclick="diskGo('${r.path.replace(/\/g, '\\')}')">${esc(r.name)}</button>`).join(' ');
+  window._diskRoots = roots;
+  $('disk-roots').innerHTML = roots.map((r, i) =>
+    `<button class="act" onclick="diskGoRoot(${i})">${esc(r.name)}</button>`).join(' ');
 }
 
 // ── 안 쓰는 것 탭 ──
