@@ -52,15 +52,15 @@ label(s, 1.2, 2.6, 11, '말끔이', 60, True)
 label(s, 1.25, 3.9, 11, '내 컴퓨터 청소 매니저  —  상태 · 캐시 · 광고 · 악성 · 파일 정리', 20)
 label(s, 1.25, 6.6, 11, '"크고 복잡한 것 말고, 작지만 정교한 것"', 14)
 
-# ── 2. 어떤 언어·기술로 만들었나 ──
+# ── 2. 프로그램 소개 ──
 s = prs.slides.add_slide(BLANK)
-label(s, 0.9, 0.55, 11, '어떤 언어 · 기술로 만들었나', 30, True)
+label(s, 0.9, 0.55, 11, '프로그램 소개', 30, True)
 rows = [
-    ('언어', 'Python 3.12 (본체 로직)  +  HTML · CSS · JavaScript (화면)'),
-    ('화면 기술', 'pywebview — 윈도우 내장 WebView2 엔진을 빌려 쓰는 경량 데스크톱 UI (Electron 대비 1/10 크기)'),
-    ('시스템 연동', 'psutil(프로세스·자원) · 레지스트리(winreg) · hosts 파일 · 작업 스케줄러 · 휴지통 셸 API · Authenticode 서명 검증'),
-    ('탐지 기술', 'SHA-256 3단 중복 판별 · 공개 악성 해시 DB(MalwareBazaar) 조회 · Prefetch 실행 기록 분석 · Zone.Identifier 출처 추적'),
-    ('배포 체계', 'PyInstaller 단일 exe 런처(15MB, 무설치) — 실행 때마다 GitHub 의 코드와 버전 비교 → 자동 업데이트'),
+    ('무엇인가', '윈도우 PC 의 상태 점검 · 청소 · 광고 차단 · 악성 점검 · 파일 정리를 한 화면에서 해결하는 청소 매니저'),
+    ('왜 만들었나', '작업관리자 · 디스크 정리 · 백신 · 중복 찾기 … 흩어져 있는 도구들을, 컴퓨터를 잘 몰라도 쓸 수 있게 하나로'),
+    ('어떻게 다른가', '설치 없음 — exe 하나(15MB). 서버 · 계정 · AI 의존 0, 모든 판단 근거를 화면에 그대로 보여줌'),
+    ('만든 기술', 'Python 3.12 + HTML·JS 화면(pywebview) · psutil · 레지스트리 · hosts · 작업 스케줄러 · SHA-256 · 악성 해시 DB'),
+    ('안전 원칙', '어떤 파일도 바로 지우지 않는다 — 미리보기 → 사용자 승인 → 휴지통 (언제든 복원 가능)'),
 ]
 y = 1.7
 for t, d in rows:
@@ -68,7 +68,26 @@ for t, d in rows:
     label(s, 3.9, y, 8.6, d, 14)
     y += 1.02
 
-# ── 3. 완성된 기능 ──
+# ── 3. 구조도 ──
+s = prs.slides.add_slide(BLANK)
+label(s, 0.9, 0.4, 11, '구조도', 30, True)
+CX = 6.667
+box(s, 2.9, 1.15, 7.5, 0.72, '화면 (HTML · JS)  —  상태 · 캐시 · 광고 · 악성 · 안쓰는것 · 파일 · 중복 · 디스크 · 자동청소', 12, True)
+arrow(s, CX, 1.87, CX, 2.17)
+box(s, 4.4, 2.17, 4.5, 0.6, 'Api 브리지 (app.py)', 13, True)
+arrow(s, CX, 2.77, CX, 3.07)
+mods = [('상태·위젯', 'sysinfo'), ('캐시 등록부', 'cache_registry'), ('안전 삭제', 'cleaner'), ('광고 스캔', 'adscan'),
+        ('hosts 차단', 'adblock'), ('악성 점검', 'malscan'), ('파일·중복', 'unused · dupes'), ('디스크 지도', 'diskmap')]
+x0, y0, w, h, gx, gy = 1.7, 3.07, 2.1, 0.78, 0.12, 0.14
+for i, (k, m) in enumerate(mods):
+    box(s, x0 + (i % 4) * (w + gx), y0 + (i // 4) * (h + gy), w, h, f'{k}\n{m}.py', 11, fill=GRAY)
+arrow(s, CX, y0 + 2 * h + gy, CX, y0 + 2 * h + gy + 0.3)
+box(s, 1.7, 5.15, 8.76, 0.72, '윈도우 시스템  —  파일 · 휴지통 | 레지스트리 | hosts | 작업 스케줄러 | Defender', 12.5)
+box(s, 11.15, 2.17, 1.85, 1.9, '런처 exe\n↕\nGitHub\n버전 비교\n→ 코드 교체', 10.5, fill=GRAY)
+arrow(s, 11.15, 2.6, 8.95, 2.5)
+label(s, 1.7, 6.3, 10.5, '배포: 무설치 단일 exe — 폴더엔 exe 하나, 코드는 GitHub 가 정본 · 켤 때마다 자동 최신화 (오프라인이면 그대로 실행)', 12.5)
+
+# ── 4. 완성된 기능 ──
 s = prs.slides.add_slide(BLANK)
 label(s, 0.9, 0.55, 11, '완성된 기능', 30, True)
 feats = [
@@ -86,25 +105,6 @@ for t, d in feats:
     label(s, 3.9, y, 8.6, d, 13.5)
     y += 0.78
 label(s, 1.1, y + 0.1, 11, '원칙: 어떤 파일도 바로 지우지 않는다 — 미리보기 → 승인 → 휴지통, 모든 긴 작업은 % 진행 표시', 13, True)
-
-# ── 4. 구조 ──
-s = prs.slides.add_slide(BLANK)
-label(s, 0.9, 0.4, 11, '구조', 30, True)
-CX = 6.667
-box(s, 2.9, 1.15, 7.5, 0.72, '화면 (HTML · JS)  —  상태 · 캐시 · 광고 · 악성 · 안쓰는것 · 파일 · 중복 · 디스크 · 자동청소', 12, True)
-arrow(s, CX, 1.87, CX, 2.17)
-box(s, 4.4, 2.17, 4.5, 0.6, 'Api 브리지 (app.py)', 13, True)
-arrow(s, CX, 2.77, CX, 3.07)
-mods = [('상태·위젯', 'sysinfo'), ('캐시 등록부', 'cache_registry'), ('안전 삭제', 'cleaner'), ('광고 스캔', 'adscan'),
-        ('hosts 차단', 'adblock'), ('악성 점검', 'malscan'), ('파일·중복', 'unused · dupes'), ('디스크 지도', 'diskmap')]
-x0, y0, w, h, gx, gy = 1.7, 3.07, 2.1, 0.78, 0.12, 0.14
-for i, (k, m) in enumerate(mods):
-    box(s, x0 + (i % 4) * (w + gx), y0 + (i // 4) * (h + gy), w, h, f'{k}\n{m}.py', 11, fill=GRAY)
-arrow(s, CX, y0 + 2 * h + gy, CX, y0 + 2 * h + gy + 0.3)
-box(s, 1.7, 5.15, 8.76, 0.72, '윈도우 시스템  —  파일 · 휴지통 | 레지스트리 | hosts | 작업 스케줄러 | Defender', 12.5)
-box(s, 11.15, 2.17, 1.85, 1.9, '런처 exe\n↕\nGitHub\n버전 비교\n→ 코드 교체', 10.5, fill=GRAY)
-arrow(s, 11.15, 2.6, 8.95, 2.5)
-label(s, 1.7, 6.3, 10.5, '배포: 무설치 단일 exe — 폴더엔 exe 하나, 코드는 GitHub 가 정본 · 켤 때마다 자동 최신화 (오프라인이면 그대로 실행)', 12.5)
 
 OUT = '말끔이_발표.pptx'
 prs.save(OUT)
